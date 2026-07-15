@@ -1,0 +1,13 @@
+# secrets — never commit the deployer key
+.deployer.txt
+.env
+
+# build artifacts
+contracts/cache/
+contracts/out/
+web/node_modules/
+web/dist/
+
+# local dev helpers
+web/src/config.local.js
+web/src/config.testnet.bak
