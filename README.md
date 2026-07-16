@@ -1,6 +1,6 @@
 # 📗 AjoBook — the onchain dues book
 
-**Live app:** _coming soon_ · **Contract (Monad testnet):** [`0xE64f39E74Caf57Dfe7b886cdBbAcC463af877723`](https://testnet.monadvision.com/address/0xE64f39E74Caf57Dfe7b886cdBbAcC463af877723) (verified) · **Demo video:** _coming soon_
+**Live app:** https://plutodev1.github.io/ajobook/ · **Contract (Monad testnet):** [`0xE64f39E74Caf57Dfe7b886cdBbAcC463af877723`](https://testnet.monadvision.com/address/0xE64f39E74Caf57Dfe7b886cdBbAcC463af877723) (verified) · **Demo video:** _coming soon_
 
 ## The problem (mine, personally)
 

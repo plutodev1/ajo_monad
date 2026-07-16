@@ -2,6 +2,9 @@
 .deployer.txt
 .env
 
+# Jerry's personal notes
+HOW_TO_PUSH.md
+
 # build artifacts
 contracts/cache/
 contracts/out/
