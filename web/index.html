@@ -6,30 +6,32 @@
     <title>AjoBook — the onchain dues book</title>
     <meta
       name="description"
-      content="AjoBook is an onchain dues book for communities. Open a campaign, members pay, everyone sees the ledger. No more chasing receipts on WhatsApp."
+      content="AjoBook is an onchain dues book for communities. The keeper opens a page, members write their name and pay, everyone can read the ledger. No more chasing receipts on WhatsApp."
     />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📗</text></svg>" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Libre+Franklin:wght@400;500;600;800&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <div class="page">
-      <header class="masthead">
-        <div class="brand">
-          <span class="brand-mark">📗</span>
-          <div>
-            <h1>AjoBook</h1>
-            <p class="tagline">the onchain dues book</p>
-          </div>
-        </div>
+    <!-- ink-bleed filter: roughens stamp edges so it prints, not renders -->
+    <svg width="0" height="0" aria-hidden="true" focusable="false">
+      <filter id="inkbleed">
+        <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="n" />
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="1.8" />
+      </filter>
+    </svg>
+
+    <div class="desk">
+      <header class="topbar">
+        <span class="wordmark">📗 AjoBook</span>
+        <span class="topbar-note" id="community-line">the dues book</span>
         <div class="wallet-area">
-          <span id="network-pill" class="pill" hidden>Monad Testnet</span>
-          <button id="connect-btn" class="btn btn-ink">Connect wallet</button>
+          <button id="connect-btn" class="btn btn-paper">Open my wallet</button>
           <div id="wallet-info" class="wallet-info" hidden>
             <span id="wallet-name"></span>
             <code id="wallet-addr"></code>
@@ -37,75 +39,74 @@
         </div>
       </header>
 
-      <section class="cover">
-        <p class="cover-kicker" id="community-name">…</p>
-        <h2 class="cover-title">Every contribution, written in ink that can’t fade.</h2>
-        <p class="cover-note">
-          Ajo is how Nigerian communities have always contributed together. AjoBook keeps that
-          book on the Monad blockchain — the admin opens a page, members pay, and everyone can
-          check the ledger. No spreadsheets, no “please resend your receipt”.
-        </p>
-        <div class="cover-stats" id="cover-stats"></div>
-      </section>
+      <p id="note" class="note" role="status" hidden></p>
 
-      <section id="banner" class="banner" hidden></section>
+      <nav id="page-tabs" class="page-tabs" aria-label="Pages in this book"></nav>
 
-      <main>
-        <div class="section-head">
-          <h3>Campaigns</h3>
-          <button id="new-campaign-btn" class="btn btn-stamp" hidden>+ Open a new page</button>
-        </div>
-        <div id="campaigns" class="campaigns">
-          <p class="empty" id="campaigns-empty">Loading the book…</p>
-        </div>
+      <main class="book">
+        <article class="sheet" id="sheet" aria-live="polite">
+          <p class="sheet-loading">Opening the book…</p>
+        </article>
       </main>
 
-      <section class="member-card" id="member-card" hidden>
-        <h3>Your name in the book</h3>
-        <p>Set a display name so the ledger shows “Ada from Enugu”, not just 0x1a2b….</p>
-        <div class="row">
-          <input id="name-input" type="text" maxlength="40" placeholder="e.g. Ada from Enugu" />
-          <button id="name-btn" class="btn btn-ink">Write my name</button>
-        </div>
-      </section>
-
-      <section class="admin-card" id="admin-card" hidden>
-        <h3>Keeper’s desk <span class="stamp-chip">ADMIN</span></h3>
-        <div class="admin-grid">
-          <form id="create-form" class="panel">
+      <section class="keeper" id="keeper" hidden>
+        <h3>Keeper’s desk <span class="stamp stamp-small">KEEPER</span></h3>
+        <p class="keeper-note">Only you see this side of the counter.</p>
+        <div class="keeper-grid">
+          <form id="create-form" class="slip">
             <h4>Open a new page</h4>
-            <label>Campaign name<input name="name" required maxlength="60" placeholder="August 2026 dues" /></label>
-            <label>Details<input name="details" maxlength="140" placeholder="Monthly dues for ChainConnect NG" /></label>
-            <label>Dues amount in MON <small>(leave 0 to accept any amount)</small><input name="amount" type="number" min="0" step="any" value="0" /></label>
-            <label>Deadline <small>(optional)</small><input name="deadline" type="date" /></label>
-            <button class="btn btn-stamp" type="submit">Open page</button>
+            <label>What is this page for?
+              <input name="name" required maxlength="60" placeholder="August 2026 dues" />
+            </label>
+            <label>A line of detail <small>(members will read this)</small>
+              <input name="details" maxlength="140" placeholder="Monthly dues for ChainConnect NG" />
+            </label>
+            <label>Dues in MON <small>(leave 0 and members give what they can)</small>
+              <input name="amount" type="number" min="0" step="any" value="0" />
+            </label>
+            <label>Collecting until <small>(optional)</small>
+              <input name="deadline" type="date" />
+            </label>
+            <button class="btn btn-ink" type="submit">Open this page</button>
           </form>
-          <form id="withdraw-form" class="panel">
-            <h4>Move funds to treasury</h4>
-            <p class="panel-note">Book balance: <strong id="book-balance">…</strong></p>
-            <label>Send to address<input name="to" required placeholder="0x…" pattern="0x[a-fA-F0-9]{40}" /></label>
-            <label>Amount in MON<input name="amount" type="number" min="0" step="any" required /></label>
-            <button class="btn btn-ink" type="submit">Withdraw</button>
-          </form>
+          <div class="slip">
+            <h4>This page</h4>
+            <p id="keeper-page-summary" class="slip-note">—</p>
+            <button id="close-page-btn" class="btn btn-red" hidden>Close this page</button>
+            <h4 class="slip-gap">The cash box</h4>
+            <p class="slip-note">Whole book holds <strong id="book-balance">…</strong></p>
+            <form id="withdraw-form">
+              <label>Send it to
+                <input name="to" required placeholder="0x… treasury address" pattern="0x[a-fA-F0-9]{40}" />
+              </label>
+              <label>How much, in MON
+                <input name="amount" type="number" min="0" step="any" required />
+              </label>
+              <button class="btn btn-ink" type="submit">Move it to the treasury</button>
+            </form>
+          </div>
         </div>
       </section>
 
-      <footer>
+      <footer class="colophon">
         <p>
-          Built by a non-technical founder tired of chasing dues receipts ·
-          <a id="contract-link" href="#" target="_blank" rel="noopener">contract on Monad testnet ↗</a>
+          Kept on the Monad blockchain, so nobody has to take the keeper’s word for it ·
+          <a id="contract-link" href="#" target="_blank" rel="noopener">read the book’s contract ↗</a>
         </p>
+        <p class="colophon-small">Built by a founder tired of chasing dues receipts on WhatsApp.</p>
       </footer>
     </div>
 
     <dialog id="pay-dialog">
-      <form id="pay-form" method="dialog">
-        <h3 id="pay-title">Pay dues</h3>
-        <p id="pay-sub" class="dialog-sub"></p>
-        <label id="pay-amount-label">Amount in MON<input id="pay-amount" type="number" min="0" step="any" /></label>
-        <div class="row">
-          <button type="button" class="btn" id="pay-cancel">Cancel</button>
-          <button type="submit" class="btn btn-stamp" id="pay-confirm">Pay &amp; sign</button>
+      <form id="pay-form" method="dialog" class="slip slip-dialog">
+        <h3 id="pay-title">Pay your dues</h3>
+        <p id="pay-sub" class="slip-note"></p>
+        <label id="pay-amount-label">How much, in MON
+          <input id="pay-amount" type="number" min="0" step="any" />
+        </label>
+        <div class="dialog-row">
+          <button type="button" class="btn" id="pay-cancel">Not now</button>
+          <button type="submit" class="btn btn-ink" id="pay-confirm">Pay &amp; sign</button>
         </div>
       </form>
     </dialog>
