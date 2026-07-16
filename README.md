@@ -1,6 +1,6 @@
 # 📗 AjoBook — the onchain dues book
 
-**Live app:** https://plutodev1.github.io/ajobook/ · **Contract (Monad testnet):** [`0xE64f39E74Caf57Dfe7b886cdBbAcC463af877723`](https://testnet.monadvision.com/address/0xE64f39E74Caf57Dfe7b886cdBbAcC463af877723) (verified) · **Demo video:** _coming soon_
+**Live app:** https://plutodev1.github.io/ajo_monad/ · **Contract (Monad testnet):** [`0xE64f39E74Caf57Dfe7b886cdBbAcC463af877723`](https://testnet.monadvision.com/address/0xE64f39E74Caf57Dfe7b886cdBbAcC463af877723) (verified) · **Demo video:** _coming soon_
 
 ## The problem (mine, personally)
 
@@ -38,7 +38,7 @@ is also written in the book.
 
 ### As a member
 
-1. Open **https://plutodev1.github.io/ajobook/**. You can read the whole book without
+1. Open **https://plutodev1.github.io/ajo_monad/**. You can read the whole book without
    connecting anything.
 2. Click **"Open my wallet"** (top right). MetaMask pops up — approve the connection.
    The app adds and switches to the Monad Testnet network for you automatically;
@@ -77,7 +77,7 @@ You'll need [Node.js](https://nodejs.org) 20+, [Foundry](https://getfoundry.sh),
 ### 1. Get the code
 
 ```bash
-git clone https://github.com/plutodev1/ajobook.git
+git clone https://github.com/plutodev1/ajo_monad.git
 cd ajobook
 ```
 
@@ -127,7 +127,7 @@ npm run dev       # opens on http://localhost:5173
 
 Push the repo to GitHub. The included workflow
 (`.github/workflows/pages.yml`) builds and publishes the app automatically on every
-push to `main` — your site appears at `https://<username>.github.io/ajobook/`.
+push to `main` — your site appears at `https://<username>.github.io/ajo_monad/`.
 If your repo has a different name, change `base` in `web/vite.config.js` to match.
 
 ---
