@@ -16,6 +16,7 @@ const publicClient = createPublicClient({ chain: MONAD_TESTNET, transport: http(
 
 let walletClient = null;
 let account = null;
+let myName = "";
 let adminAddr = null;
 let campaigns = [];
 let ledgers = [];
@@ -147,6 +148,7 @@ function signOut() {
     ?.request?.({ method: "wallet_revokePermissions", params: [{ eth_accounts: {} }] })
     .catch(() => {});
   account = null;
+  myName = "";
   walletClient = null;
   activeProvider = null;
   $("connect-btn").hidden = false;
@@ -180,6 +182,68 @@ function renderTabs() {
       renderKeeper();
     };
   });
+}
+
+function renderDash() {
+  const dash = $("member-dash");
+  if (!account) {
+    dash.hidden = true;
+    dash.innerHTML = "";
+    return;
+  }
+
+  let total = 0n;
+  let paidPages = 0;
+  campaigns.forEach((c, i) => {
+    const mine = (ledgers[i] || []).find((p) => getAddress(p.member) === account);
+    if (mine) {
+      total += mine.amount;
+      paidPages++;
+    }
+  });
+  const awaiting = campaigns.filter(
+    (c, i) => isOpen(c) && !(ledgers[i] || []).some((p) => getAddress(p.member) === account)
+  ).length;
+
+  dash.hidden = false;
+  dash.innerHTML = `
+    <div class="dash-who">
+      <span class="stamp stamp-small">Member</span>
+      <div class="dash-name-view" id="dash-name-view">
+        <b class="dash-name">${myName ? escapeHtml(myName) : "Unsigned member"}</b>
+        <button class="dash-edit-btn" id="dash-edit" type="button">✏️ ${myName ? "edit name" : "write your name"}</button>
+      </div>
+      <form class="dash-edit-row" id="dash-edit-row" hidden>
+        <input id="dash-name-input" maxlength="40" value="${escapeHtml(myName || "")}"
+          placeholder="Your name, as members know you" aria-label="Your display name" />
+        <button class="btn btn-ink" type="submit">Save it</button>
+        <button class="btn" type="button" id="dash-edit-cancel">Cancel</button>
+      </form>
+      <code>${short(account)}</code>
+    </div>
+    <div class="dash-stats">
+      <div class="dash-stat"><b>${mon(total)}</b><span>you've contributed</span></div>
+      <div class="dash-stat"><b>${paidPages} of ${campaigns.length}</b><span>pages stamped</span></div>
+      <div class="dash-stat ${awaiting ? "dash-due" : ""}"><b>${awaiting}</b><span>page${awaiting === 1 ? "" : "s"} awaiting you</span></div>
+    </div>`;
+
+  $("dash-edit").onclick = () => {
+    $("dash-name-view").hidden = true;
+    $("dash-edit-row").hidden = false;
+    $("dash-name-input").focus();
+  };
+  $("dash-edit-cancel").onclick = () => {
+    $("dash-edit-row").hidden = true;
+    $("dash-name-view").hidden = false;
+  };
+  $("dash-edit-row").onsubmit = (e) => {
+    e.preventDefault();
+    const name = $("dash-name-input").value.trim();
+    if (!name) return note("Write a name first — the book needs it.", "err");
+    sendTx("Rewriting your name", () =>
+      walletClient.writeContract({ ...contract, functionName: "setMyName", args: [name], account })
+    );
+  };
 }
 
 function renderSheet() {
@@ -229,8 +293,7 @@ function renderSheet() {
     .join("");
 
   const iPaid = account && ledger.some((p) => getAddress(p.member) === account);
-  const myName = account ? $("wallet-name").textContent : "";
-  const needsSignature = account && (!myName || myName === "Unsigned member");
+  const needsSignature = account && !myName;
 
   const signLine =
     account && needsSignature
@@ -247,7 +310,8 @@ function renderSheet() {
     if (!account) {
       action = `<button class="btn btn-ink" data-connect>Open my wallet to sign this page</button>`;
     } else if (fixed && iPaid) {
-      action = `<p class="paid-note">You’re on this page — nothing more to pay. ✓</p>`;
+      action = `<p class="paid-note">Your dues are stamped ✓</p>
+        <button class="btn" data-pay="${id}">Feeling generous? Add another ${mon(c.duesAmount)} 💚</button>`;
     } else {
       const label = fixed ? `Pay my dues — ${mon(c.duesAmount)}` : iPaid ? `Add a little more` : `Put something on this page`;
       action = `<button class="btn btn-ink" data-pay="${id}">${label}</button>`;
@@ -338,11 +402,12 @@ async function refresh() {
     $("contract-link").href = `${EXPLORER}/address/${CONTRACT_ADDRESS}`;
 
     if (account) {
-      const myName = await publicClient.readContract({ ...contract, functionName: "memberName", args: [account] });
+      myName = await publicClient.readContract({ ...contract, functionName: "memberName", args: [account] });
       $("wallet-name").textContent = myName || "Unsigned member";
     }
 
     renderTabs();
+    renderDash();
     renderSheet();
     renderKeeper();
   } catch (e) {
@@ -356,10 +421,13 @@ function openPayDialog(id) {
   if (!account) return connect();
   const c = campaigns[id];
   const fixed = c.duesAmount > 0n;
+  const topUp = fixed && (ledgers[id] || []).some((p) => getAddress(p.member) === account);
   $("pay-title").textContent = `${c.name}`;
-  $("pay-sub").textContent = fixed
-    ? `Dues on this page are ${mon(c.duesAmount)}, same for everyone.`
-    : `This page takes any amount — write in what you’re giving.`;
+  $("pay-sub").textContent = topUp
+    ? `Your dues are already stamped — this adds another ${mon(c.duesAmount)} on top. Every extra stamp grows the pot.`
+    : fixed
+      ? `Dues on this page are ${mon(c.duesAmount)}, same for everyone. Already paid? You can always stamp again to give extra.`
+      : `This page takes any amount — write in what you’re giving.`;
   $("pay-amount-label").hidden = fixed;
   $("pay-amount").value = fixed ? formatEther(c.duesAmount) : "";
   $("pay-amount").required = !fixed;

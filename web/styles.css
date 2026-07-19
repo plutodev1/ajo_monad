@@ -261,3 +261,40 @@ dialog::backdrop { background: #1a140dcc; }
 }
 .wallet-option:hover { border-color: var(--ink); background: #fff; }
 .wallet-option img { border-radius: 6px; }
+
+/* ---------- member dashboard: your card on the desk ---------- */
+
+.member-dash {
+  display: flex; justify-content: space-between; align-items: center; gap: 18px;
+  flex-wrap: wrap; background: var(--paper);
+  border-radius: 4px 4px 0 0; padding: 14px 20px; margin: 0 6px;
+  border-bottom: 2px solid var(--rule);
+  box-shadow: 0 -2px 8px #00000030;
+}
+.dash-who { display: grid; gap: 2px; }
+.dash-name-view { display: flex; align-items: baseline; gap: 10px; }
+.dash-name { font-family: var(--hand); font-weight: 700; font-size: 1.7rem; line-height: 1.1; }
+.dash-edit-btn {
+  background: none; border: none; padding: 0; cursor: pointer;
+  font: 500 0.75rem var(--form); color: var(--stamp-violet); text-decoration: underline;
+}
+.dash-edit-btn:hover { opacity: 0.75; }
+.dash-edit-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 4px 0; }
+.dash-edit-row input {
+  flex: 1; min-width: 180px; border: none; background: transparent;
+  border-bottom: 1.5px dashed var(--ink-faint); border-radius: 0;
+  font-family: var(--hand); font-size: 1.35rem; color: var(--ink); padding: 0 4px 2px;
+}
+.dash-edit-row input:focus { outline: none; border-bottom-color: var(--ink); border-bottom-style: solid; }
+.dash-who code { font-size: 0.68rem; color: var(--ink-faint); }
+.dash-stats { display: flex; gap: 22px; }
+.dash-stat { display: grid; justify-items: end; gap: 0; }
+.dash-stat b { font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.dash-stat span { font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); }
+.dash-due b { color: var(--stamp-violet); }
+
+@media (max-width: 600px) {
+  .member-dash { margin: 0; }
+  .dash-stats { width: 100%; justify-content: space-between; }
+  .dash-stat { justify-items: start; }
+}
