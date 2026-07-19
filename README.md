@@ -30,8 +30,10 @@ is also written in the book.
 
 ### What you need
 
-1. **A browser wallet.** Install [MetaMask](https://metamask.io) (Chrome/Firefox
-   extension or mobile app) and create a wallet if you don't have one.
+1. **A browser wallet.** Any EVM browser wallet works — [MetaMask](https://metamask.io),
+   [Rabby](https://rabby.io), [OKX Wallet](https://web3.okx.com), Coinbase Wallet…
+   If you have several installed, AjoBook lets you pick one. You can sign out any time
+   from the top-right corner.
 2. **Free test MON for gas.** AjoBook runs on Monad *testnet* — the tokens are free.
    Go to the [Monad faucet](https://faucet.monad.xyz), paste your wallet address
    (copy it from MetaMask: click your account name), and press *Get Tokens*.

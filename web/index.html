@@ -35,6 +35,7 @@
           <div id="wallet-info" class="wallet-info" hidden>
             <span id="wallet-name"></span>
             <code id="wallet-addr"></code>
+            <button id="signout-btn" class="btn-quiet" type="button">Sign out</button>
           </div>
         </div>
       </header>
@@ -96,6 +97,17 @@
         <p class="colophon-small">Built by a founder tired of chasing dues receipts on WhatsApp.</p>
       </footer>
     </div>
+
+    <dialog id="wallet-dialog">
+      <div class="slip slip-dialog">
+        <h3>Choose your wallet</h3>
+        <p class="slip-note">Any of these can sign the book.</p>
+        <div id="wallet-list" class="wallet-list"></div>
+        <div class="dialog-row">
+          <button type="button" class="btn" id="wallet-cancel">Not now</button>
+        </div>
+      </div>
+    </dialog>
 
     <dialog id="pay-dialog">
       <form id="pay-form" method="dialog" class="slip slip-dialog">

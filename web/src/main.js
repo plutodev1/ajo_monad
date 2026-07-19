@@ -66,28 +66,95 @@ async function sendTx(label, fn) {
 const isOpen = (c) => !c.closed && (c.deadline === 0n || BigInt(Math.floor(Date.now() / 1000)) <= c.deadline);
 
 // ---------- wallet ----------
+// Wallets announce themselves via EIP-6963, so MetaMask, Rabby, OKX, Coinbase
+// and friends all show up without any wallet-kit library.
+
+const discovered = new Map(); // rdns -> { info, provider }
+let activeProvider = null;
+
+window.addEventListener("eip6963:announceProvider", (e) => {
+  discovered.set(e.detail.info.rdns, e.detail);
+});
+window.dispatchEvent(new Event("eip6963:requestProvider"));
 
 async function connect() {
-  if (!window.ethereum) {
+  const wallets = [...discovered.values()];
+  if (wallets.length === 0 && window.ethereum) {
+    return connectWith(window.ethereum); // older wallets that don't announce
+  }
+  if (wallets.length === 0) {
     note(
-      `You’ll need a wallet to sign the book. Install <a href="https://metamask.io" target="_blank" rel="noopener">MetaMask</a>, then come back.`,
+      `You’ll need a wallet to sign the book. Install
+       <a href="https://metamask.io" target="_blank" rel="noopener">MetaMask</a>,
+       <a href="https://rabby.io" target="_blank" rel="noopener">Rabby</a> or
+       <a href="https://web3.okx.com" target="_blank" rel="noopener">OKX Wallet</a>, then come back.`,
       "err"
     );
     return;
   }
-  walletClient = createWalletClient({ chain: MONAD_TESTNET, transport: custom(window.ethereum) });
+  if (wallets.length === 1) {
+    return connectWith(wallets[0].provider);
+  }
+  // several wallets installed — let the member choose
+  $("wallet-list").innerHTML = wallets
+    .map(
+      (w, i) => `<button type="button" class="wallet-option" data-wallet="${i}">
+        <img src="${w.info.icon}" alt="" width="26" height="26" />
+        <span>${escapeHtml(w.info.name)}</span>
+      </button>`
+    )
+    .join("");
+  $("wallet-list")
+    .querySelectorAll("[data-wallet]")
+    .forEach((b) => {
+      b.onclick = () => {
+        $("wallet-dialog").close();
+        connectWith(wallets[Number(b.dataset.wallet)].provider).catch((e) =>
+          note(e.shortMessage || e.message, "err")
+        );
+      };
+    });
+  $("wallet-dialog").showModal();
+}
+
+async function connectWith(provider) {
+  walletClient = createWalletClient({ chain: MONAD_TESTNET, transport: custom(provider) });
   const [addr] = await walletClient.requestAddresses();
   account = getAddress(addr);
+  activeProvider = provider;
   try {
     await walletClient.switchChain({ id: MONAD_TESTNET.id });
   } catch {
     await walletClient.addChain({ chain: MONAD_TESTNET });
     await walletClient.switchChain({ id: MONAD_TESTNET.id });
   }
+  if (provider.on) {
+    provider.on("accountsChanged", (accounts) => {
+      if (!accounts || accounts.length === 0) return signOut();
+      account = getAddress(accounts[0]);
+      refresh();
+    });
+  }
   $("connect-btn").hidden = true;
   $("wallet-info").hidden = false;
   $("wallet-addr").textContent = short(account);
   await refresh();
+}
+
+function signOut() {
+  // politely ask the wallet to forget us; not all wallets support it
+  activeProvider
+    ?.request?.({ method: "wallet_revokePermissions", params: [{ eth_accounts: {} }] })
+    .catch(() => {});
+  account = null;
+  walletClient = null;
+  activeProvider = null;
+  $("connect-btn").hidden = false;
+  $("wallet-info").hidden = true;
+  $("wallet-name").textContent = "";
+  $("wallet-addr").textContent = "";
+  note("Signed out. The book stays open for reading.", "ok");
+  refresh();
 }
 
 // ---------- rendering ----------
@@ -313,6 +380,8 @@ function openPayDialog(id) {
 // ---------- static wiring ----------
 
 $("connect-btn").onclick = () => connect().catch((e) => note(e.shortMessage || e.message, "err"));
+$("signout-btn").onclick = signOut;
+$("wallet-cancel").onclick = () => $("wallet-dialog").close();
 $("pay-cancel").onclick = () => $("pay-dialog").close();
 
 $("create-form").onsubmit = (e) => {
