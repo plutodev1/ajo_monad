@@ -9,6 +9,7 @@ import {
   isAddress,
 } from "viem";
 import { AJOBOOK_ABI, AJOCIRCLE_ABI, ERC20_ABI } from "./abi.js";
+import { AJOBOOK_BYTECODE, AJOCIRCLE_BYTECODE } from "./bytecode.js";
 import { CHAIN, AJOBOOK_ADDRESS, AJOCIRCLE_ADDRESS, USDC_ADDRESS, USDC_DECIMALS, EXPLORER } from "./config.js";
 
 const $ = (id) => document.getElementById(id);
@@ -397,10 +398,7 @@ function renderKeeper() {
 }
 
 async function refresh() {
-  if (!AJOBOOK_ADDRESS) {
-    $("sheet").innerHTML = `<p class="sheet-loading">This book hasn’t been deployed yet. Set AJOBOOK_ADDRESS in web/src/config.js.</p>`;
-    return;
-  }
+  if (!AJOBOOK_ADDRESS) return renderSetup();
   renderModeSwitch();
   if (view === "circles") return refreshCircles();
   try {
@@ -733,5 +731,51 @@ $("circle-add-me").onclick = () => {
   const box = $("circle-form").elements.members;
   if (!box.value.includes(account)) box.value = (box.value.trim() ? box.value.trim() + "\n" : "") + account;
 };
+
+// ---------- one-time setup: deploy the book from the keeper's wallet ----------
+
+function renderSetup() {
+  $("community-line").textContent = `setting up on ${CHAIN.name}`;
+  $("sheet").innerHTML = `
+    <header class="sheet-head">
+      <span class="sheet-kicker">New book</span>
+      <h2 class="sheet-title">Set up AjoBook on ${escapeHtml(CHAIN.name)}</h2>
+      <p class="sheet-details">One-time step for the keeper. Your wallet creates two contracts — the dues book and the Esusu circles —
+        and becomes the book’s keeper. You need a little ${escapeHtml(CHAIN.name)} ETH for gas.</p>
+    </header>
+    <div class="sign-line">
+      <input id="setup-name" type="text" maxlength="60" value="ChainConnect NG" aria-label="Community name" />
+      <button id="setup-btn" class="btn btn-ink">${account ? "Deploy the book" : "Open my wallet"}</button>
+    </div>
+    <div id="setup-out"></div>`;
+  $("setup-btn").onclick = async () => {
+    if (!account) return connect().catch((e) => note(e.shortMessage || e.message, "err"));
+    const name = $("setup-name").value.trim();
+    if (!name) return note("Write the community name first.", "err");
+    const eth = await publicClient.getBalance({ address: account });
+    if (eth === 0n) {
+      return note(`This wallet has no ${escapeHtml(CHAIN.name)} ETH for gas yet. Get some free from the
+        <a href="https://www.alchemy.com/faucets/arbitrum-sepolia" target="_blank" rel="noopener">Alchemy faucet</a>, then try again.`, "err");
+    }
+    const deploy = async (label, abi, bytecode, args) => {
+      note(`${label}… your wallet will ask you to sign.`);
+      const hash = await walletClient.deployContract({ abi, bytecode, args, account });
+      note(`${label} — waiting for the chain… ${txLink(hash)}`);
+      const r = await publicClient.waitForTransactionReceipt({ hash });
+      return r.contractAddress;
+    };
+    try {
+      const book = await deploy("Creating the dues book", AJOBOOK_ABI, AJOBOOK_BYTECODE, [name, USDC_ADDRESS]);
+      const circ = await deploy("Creating the Esusu circles", AJOCIRCLE_ABI, AJOCIRCLE_BYTECODE, [USDC_ADDRESS]);
+      note("Both contracts are live. Copy the two addresses below and send them over.", "ok");
+      $("setup-out").innerHTML = `
+        <p class="sheet-terms"><b>AjoBook</b> <code>${book}</code></p>
+        <p class="sheet-terms"><b>AjoCircle</b> <code>${circ}</code></p>
+        <p class="sheet-details">Once these are in the app’s settings, everyone who opens this link sees the new book.</p>`;
+    } catch (e) {
+      note(`That didn’t go through: ${e.shortMessage || e.message}`, "err");
+    }
+  };
+}
 
 refresh();
