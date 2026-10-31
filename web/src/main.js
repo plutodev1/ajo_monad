@@ -3,16 +3,17 @@ import {
   createWalletClient,
   custom,
   http,
-  formatEther,
-  parseEther,
+  formatUnits,
+  parseUnits,
   getAddress,
+  isAddress,
 } from "viem";
-import { AJOBOOK_ABI } from "./abi.js";
-import { CONTRACT_ADDRESS, MONAD_TESTNET, EXPLORER } from "./config.js";
+import { AJOBOOK_ABI, AJOCIRCLE_ABI, ERC20_ABI } from "./abi.js";
+import { CHAIN, AJOBOOK_ADDRESS, AJOCIRCLE_ADDRESS, USDC_ADDRESS, USDC_DECIMALS, EXPLORER } from "./config.js";
 
 const $ = (id) => document.getElementById(id);
 
-const publicClient = createPublicClient({ chain: MONAD_TESTNET, transport: http() });
+const publicClient = createPublicClient({ chain: CHAIN, transport: http() });
 
 let walletClient = null;
 let account = null;
@@ -23,16 +24,36 @@ let ledgers = [];
 let activePage = 0;
 let justStamped = null; // "pageId:address" — animate this stamp once
 
-const contract = { address: CONTRACT_ADDRESS, abi: AJOBOOK_ABI };
+const contract = { address: AJOBOOK_ADDRESS, abi: AJOBOOK_ABI };
+const circleContract = { address: AJOCIRCLE_ADDRESS, abi: AJOCIRCLE_ABI };
+const usdcContract = { address: USDC_ADDRESS, abi: ERC20_ABI };
+let view = "book"; // "book" | "circles"
 
 // ---------- helpers ----------
 
 const short = (a) => `${a.slice(0, 6)}…${a.slice(-4)}`;
-const mon = (wei) => {
-  const s = formatEther(wei);
-  const n = Number(s);
-  return `${n >= 1000 ? n.toLocaleString() : s.replace(/(\.\d{4})\d+$/, "$1")} MON`;
+const usd = (units) => {
+  const n = Number(formatUnits(units, USDC_DECIMALS));
+  return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
+const mon = usd; // kept so older call sites read the same
+const toUnits = (s) => parseUnits(String(s || "0"), USDC_DECIMALS);
+
+// Dues are paid in USDC, so the wallet first allows the contract to take
+// exactly this amount. Skipped when an earlier approval still covers it.
+async function ensureAllowance(spender, amount) {
+  const current = await publicClient.readContract({ ...usdcContract, functionName: "allowance", args: [account, spender] });
+  if (current >= amount) return true;
+  const bal = await publicClient.readContract({ ...usdcContract, functionName: "balanceOf", args: [account] });
+  if (bal < amount) {
+    note(`You need ${usd(amount)} USDC in this wallet but have ${usd(bal)}. Test USDC is free at
+      <a href="https://faucet.circle.com" target="_blank" rel="noopener">faucet.circle.com</a> (pick Arbitrum Sepolia).`, "err");
+    return false;
+  }
+  return sendTx(`Allowing AjoBook to take ${usd(amount)} USDC`, () =>
+    walletClient.writeContract({ ...usdcContract, functionName: "approve", args: [spender, amount], account })
+  );
+}
 const dateWords = (ts) =>
   new Date(Number(ts) * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 
@@ -119,15 +140,15 @@ async function connect() {
 }
 
 async function connectWith(provider) {
-  walletClient = createWalletClient({ chain: MONAD_TESTNET, transport: custom(provider) });
+  walletClient = createWalletClient({ chain: CHAIN, transport: custom(provider) });
   const [addr] = await walletClient.requestAddresses();
   account = getAddress(addr);
   activeProvider = provider;
   try {
-    await walletClient.switchChain({ id: MONAD_TESTNET.id });
+    await walletClient.switchChain({ id: CHAIN.id });
   } catch {
-    await walletClient.addChain({ chain: MONAD_TESTNET });
-    await walletClient.switchChain({ id: MONAD_TESTNET.id });
+    await walletClient.addChain({ chain: CHAIN });
+    await walletClient.switchChain({ id: CHAIN.id });
   }
   if (provider.on) {
     provider.on("accountsChanged", (accounts) => {
@@ -376,13 +397,20 @@ function renderKeeper() {
 }
 
 async function refresh() {
+  if (!AJOBOOK_ADDRESS) {
+    $("sheet").innerHTML = `<p class="sheet-loading">This book hasn’t been deployed yet. Set AJOBOOK_ADDRESS in web/src/config.js.</p>`;
+    return;
+  }
+  renderModeSwitch();
+  if (view === "circles") return refreshCircles();
   try {
     const [name, admin, all, balance] = await Promise.all([
       publicClient.readContract({ ...contract, functionName: "communityName" }),
       publicClient.readContract({ ...contract, functionName: "admin" }),
       publicClient.readContract({ ...contract, functionName: "getAllCampaigns" }),
-      publicClient.getBalance({ address: CONTRACT_ADDRESS }),
+      publicClient.readContract({ ...contract, functionName: "balance" }),
     ]);
+    if (view !== "book") return; // switched to circles while loading
     adminAddr = getAddress(admin);
     campaigns = all;
     ledgers = await Promise.all(
@@ -399,10 +427,11 @@ async function refresh() {
 
     $("community-line").textContent = `the dues book of ${name}`;
     $("book-balance").textContent = mon(balance);
-    $("contract-link").href = `${EXPLORER}/address/${CONTRACT_ADDRESS}`;
+    $("contract-link").href = `${EXPLORER}/address/${AJOBOOK_ADDRESS}`;
 
     if (account) {
       myName = await publicClient.readContract({ ...contract, functionName: "memberName", args: [account] });
+      if (view !== "book") return;
       $("wallet-name").textContent = myName || "Unsigned member";
     }
 
@@ -429,16 +458,22 @@ function openPayDialog(id) {
       ? `Dues on this page are ${mon(c.duesAmount)}, same for everyone. Already paid? You can always stamp again to give extra.`
       : `This page takes any amount — write in what you’re giving.`;
   $("pay-amount-label").hidden = fixed;
-  $("pay-amount").value = fixed ? formatEther(c.duesAmount) : "";
+  $("pay-amount").value = fixed ? formatUnits(c.duesAmount, USDC_DECIMALS) : "";
   $("pay-amount").required = !fixed;
   $("pay-dialog").showModal();
   $("pay-form").onsubmit = (e) => {
     e.preventDefault();
-    const value = fixed ? c.duesAmount : parseEther($("pay-amount").value || "0");
+    const value = fixed ? c.duesAmount : toUnits($("pay-amount").value);
+    if (value === 0n) return note("Write an amount first.", "err");
     $("pay-dialog").close();
-    sendTx("Paying your dues", () =>
-      walletClient.writeContract({ ...contract, functionName: "payDues", args: [BigInt(id)], value, account })
-    ).then((ok) => {
+    ensureAllowance(AJOBOOK_ADDRESS, value)
+      .then((allowed) =>
+        allowed &&
+        sendTx("Paying your dues", () =>
+          walletClient.writeContract({ ...contract, functionName: "payDues", args: [BigInt(id), value], account })
+        )
+      )
+      .then((ok) => {
       if (ok) justStamped = `${id}:${account.toLowerCase()}`;
       renderSheet();
     });
@@ -455,7 +490,7 @@ $("pay-cancel").onclick = () => $("pay-dialog").close();
 $("create-form").onsubmit = (e) => {
   e.preventDefault();
   const f = new FormData(e.target);
-  const amount = parseEther(String(f.get("amount") || "0"));
+  const amount = toUnits(f.get("amount"));
   const dl = f.get("deadline")
     ? BigInt(Math.floor(new Date(`${f.get("deadline")}T23:59:59`).getTime() / 1000))
     : 0n;
@@ -476,10 +511,227 @@ $("withdraw-form").onsubmit = (e) => {
     walletClient.writeContract({
       ...contract,
       functionName: "withdraw",
-      args: [getAddress(String(f.get("to"))), parseEther(String(f.get("amount")))],
+      args: [getAddress(String(f.get("to"))), toUnits(f.get("amount"))],
       account,
     })
   );
+};
+
+// ---------- Esusu circles (rotating savings) ----------
+
+let circles = [];
+let circleMembers = [];
+let activeCircle = 0;
+
+const FREQUENCIES = { 86400: "daily", 604800: "weekly", 2592000: "monthly" };
+const freqWord = (secs) => FREQUENCIES[Number(secs)] || `every ${Math.round(Number(secs) / 86400)} days`;
+const nowSec = () => BigInt(Math.floor(Date.now() / 1000));
+const roundEnd = (c) => c.startTime + (BigInt(c.currentRound) + 1n) * BigInt(c.roundDuration);
+
+function renderModeSwitch() {
+  const el = $("mode-switch");
+  el.hidden = false;
+  el.querySelectorAll("[data-view]").forEach((b) => {
+    b.setAttribute("aria-selected", String(b.dataset.view === view));
+    b.onclick = () => {
+      if (view === b.dataset.view) return;
+      view = b.dataset.view;
+      $("page-tabs").innerHTML = "";
+      $("member-dash").hidden = true;
+      $("keeper").hidden = true;
+      $("circle-desk").hidden = true;
+      $("sheet").innerHTML = `<p class="sheet-loading">Opening…</p>`;
+      refresh();
+    };
+  });
+}
+
+async function refreshCircles() {
+  if (!AJOCIRCLE_ADDRESS) {
+    $("sheet").innerHTML = `<p class="sheet-loading">Esusu circles aren’t deployed yet. Set AJOCIRCLE_ADDRESS in web/src/config.js.</p>`;
+    return;
+  }
+  try {
+    circles = await publicClient.readContract({ ...circleContract, functionName: "getAllCircles" });
+    if (activeCircle >= circles.length) activeCircle = 0;
+    circleMembers = await Promise.all(
+      circles.map((_, i) => publicClient.readContract({ ...circleContract, functionName: "getMembers", args: [BigInt(i)] }))
+    );
+    // display names come from the dues book, so a member signs once for both
+    const addrs = [...new Set(circleMembers.flat().map((m) => getAddress(m.member)))];
+    const names = await Promise.all(
+      addrs.map((a) => publicClient.readContract({ ...contract, functionName: "memberName", args: [a] }).catch(() => ""))
+    );
+    const nameOf = Object.fromEntries(addrs.map((a, i) => [a, names[i]]));
+    if (view !== "circles") return; // switched back while loading
+    $("member-dash").hidden = true;
+    $("keeper").hidden = true;
+    $("community-line").textContent = "Esusu circles — everyone takes a turn";
+    $("contract-link").href = `${EXPLORER}/address/${AJOCIRCLE_ADDRESS}`;
+    renderCircleTabs();
+    renderCircleSheet(nameOf);
+    $("circle-desk").hidden = !account;
+  } catch (e) {
+    $("sheet").innerHTML = `<p class="sheet-loading">Couldn’t open the circles — ${escapeHtml(e.shortMessage || "the network didn’t answer")}. Refresh to try again.</p>`;
+  }
+}
+
+function renderCircleTabs() {
+  const nav = $("page-tabs");
+  if (circles.length <= 1) {
+    nav.innerHTML = "";
+    return;
+  }
+  nav.innerHTML = circles
+    .map(
+      (c, i) => `<button class="page-tab" role="tab" aria-selected="${i === activeCircle}" data-circle="${i}">
+        ${escapeHtml(c.name)}${c.finished ? `<span class="tab-closed">· done</span>` : ""}
+      </button>`
+    )
+    .join("");
+  nav.querySelectorAll("[data-circle]").forEach((b) => {
+    b.onclick = () => {
+      activeCircle = Number(b.dataset.circle);
+      refreshCircles();
+    };
+  });
+}
+
+function renderCircleSheet(nameOf) {
+  const sheet = $("sheet");
+  if (!circles.length) {
+    sheet.innerHTML = `
+      <header class="sheet-head">
+        <span class="sheet-kicker">Esusu</span>
+        <h2 class="sheet-title">No circles yet</h2>
+      </header>
+      <p class="empty-invite">${account ? "Start one below — list your members in the order they collect." : "Open your wallet to start a circle."}</p>
+      ${`<div class="blank-rule"></div>`.repeat(4)}`;
+    return;
+  }
+
+  const id = activeCircle;
+  const c = circles[id];
+  const members = circleMembers[id] || [];
+  const n = members.length;
+  const round = Number(c.currentRound);
+  const started = nowSec() >= c.startTime;
+  const overdue = !c.finished && nowSec() > roundEnd(c);
+  const me = account && members.find((m) => getAddress(m.member) === account);
+
+  const terms = [
+    `Each member puts in <b>${usd(c.contribution)}</b> ${freqWord(c.roundDuration)}`,
+    `pot of <b>${usd(c.contribution * BigInt(n))}</b> per turn`,
+    c.finished
+      ? `every turn has been paid`
+      : !started
+        ? `starts <b>${dateWords(c.startTime)}</b>`
+        : `turn ${round + 1} of ${n} · ${overdue ? "<b>time is up</b>" : `closes <b>${dateWords(roundEnd(c))}</b>`}`,
+  ].join(" · ");
+
+  const rows = members
+    .map((m, i) => {
+      const addr = getAddress(m.member);
+      const name = nameOf[addr];
+      const you = account && addr === account;
+      let status = "";
+      if (i < round) status = `<span class="stamp">Collected ${usd(m.received)}</span>`;
+      else if (i === round && !c.finished) status = `<span class="stamp stamp-turn">Their turn</span>`;
+      const paidMark = !c.finished && m.paidThisRound ? `<span class="stamp">Paid ✓</span>` : "";
+      const missed = m.missed > 0 ? `<span class="missed">missed ${m.missed}</span>` : "";
+      return `<li class="entry">
+        <span class="no">${i + 1}</span>
+        <span class="who">
+          <b>${name ? escapeHtml(name) : "Unsigned member"}</b>
+          <code>${short(addr)}</code>
+          ${you ? `<span class="you-mark">— you</span>` : ""} ${missed}
+        </span>
+        <span class="leader" aria-hidden="true"></span>
+        <span class="amt">${paidMark}</span>
+        ${status}
+      </li>`;
+    })
+    .join("");
+
+  let action = "";
+  if (!c.finished) {
+    if (overdue) {
+      action = `<button class="btn btn-red" data-close-round>Close this turn and pay out what came in</button>`;
+    } else if (!account) {
+      action = `<button class="btn btn-ink" data-connect>Open my wallet</button>`;
+    } else if (me && !me.paidThisRound && started) {
+      action = `<button class="btn btn-ink" data-contribute>Put in my ${usd(c.contribution)}</button>`;
+    } else if (me && me.paidThisRound) {
+      action = `<p class="paid-note">You’ve paid this turn ✓ — the pot goes out the moment the last person pays.</p>`;
+    }
+  }
+
+  const potNow = c.contribution * BigInt(members.filter((m) => m.paidThisRound).length);
+  sheet.innerHTML = `
+    <header class="sheet-head">
+      <div class="sheet-title-row">
+        <span class="sheet-kicker">Circle ${id + 1}</span>
+        <h2 class="sheet-title">${escapeHtml(c.name)}</h2>
+        ${c.finished ? `<span class="stamp stamp-small">Completed</span>` : ""}
+      </div>
+      <p class="sheet-terms">${terms}</p>
+      <p class="sheet-details">Turns go in the order below. Nobody holds the money: the contract pays the person whose turn it is as soon as everyone has paid.</p>
+    </header>
+    <ol class="entries">${rows}</ol>
+    <div class="sum">
+      <span class="sum-label">${c.finished ? "circle complete" : "in the pot this turn"}</span>
+      <b>${usd(c.finished ? 0n : potNow)}</b>
+    </div>
+    <div class="page-actions">${action}</div>`;
+
+  sheet.querySelector("[data-connect]")?.addEventListener("click", () => connect().catch((e) => note(e.shortMessage || e.message, "err")));
+  sheet.querySelector("[data-contribute]")?.addEventListener("click", async () => {
+    if (!(await ensureAllowance(AJOCIRCLE_ADDRESS, c.contribution))) return;
+    await sendTx("Putting in your share", () =>
+      walletClient.writeContract({ ...circleContract, functionName: "contribute", args: [BigInt(id)], account })
+    );
+  });
+  sheet.querySelector("[data-close-round]")?.addEventListener("click", () => {
+    if (!account) return connect();
+    sendTx("Closing this turn", () =>
+      walletClient.writeContract({ ...circleContract, functionName: "closeRound", args: [BigInt(id)], account })
+    );
+  });
+}
+
+$("circle-form").onsubmit = (e) => {
+  e.preventDefault();
+  if (!account) return connect();
+  const f = new FormData(e.target);
+  const lines = String(f.get("members"))
+    .split(/[\s,]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const bad = lines.find((a) => !isAddress(a));
+  if (bad) return note(`“${escapeHtml(bad)}” isn’t a wallet address. One 0x… address per line.`, "err");
+  const members = lines.map((a) => getAddress(a));
+  if (new Set(members).size !== members.length) return note("The same address is on the list twice.", "err");
+  if (members.length < 2) return note("A circle needs at least two members.", "err");
+  const start = f.get("start") ? BigInt(Math.floor(new Date(`${f.get("start")}T00:00:00`).getTime() / 1000)) : 0n;
+  sendTx("Starting the circle", () =>
+    walletClient.writeContract({
+      ...circleContract,
+      functionName: "createCircle",
+      args: [f.get("name"), members, toUnits(f.get("amount")), start, Number(f.get("frequency"))],
+      account,
+    })
+  ).then((ok) => {
+    if (ok) {
+      e.target.reset();
+      activeCircle = circles.length - 1;
+      refresh();
+    }
+  });
+};
+$("circle-add-me").onclick = () => {
+  if (!account) return connect();
+  const box = $("circle-form").elements.members;
+  if (!box.value.includes(account)) box.value = (box.value.trim() ? box.value.trim() + "\n" : "") + account;
 };
 
 refresh();

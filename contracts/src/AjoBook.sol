@@ -1,16 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {IERC20, SafeToken} from "./SafeToken.sol";
+
 /// @title AjoBook — an onchain dues book for a community
 /// @notice "Ajo" is the Nigerian word for group contributions. This contract
-///         replaces the WhatsApp spreadsheet-and-receipts routine: an admin
-///         opens a campaign (e.g. "July dues", "Lagos meetup fund"), members
-///         pay MON directly, and every payment is publicly recorded forever.
+///         replaces the WhatsApp spreadsheet-and-receipts routine: a keeper
+///         opens a campaign (e.g. "July dues", "Port Harcourt meetup fund"),
+///         members pay in a stablecoin (USDC) directly, and every payment is
+///         publicly recorded forever.
+/// @dev    Members must `approve` this contract on the dues token before
+///         calling `payDues`.
 contract AjoBook {
+    using SafeToken for IERC20;
+
     struct Campaign {
         string name;
         string details;
-        uint96 duesAmount; // fixed amount per payment; 0 means any amount is welcome
+        uint96 duesAmount; // fixed amount per payment in token units; 0 means any amount is welcome
         uint64 deadline; // unix timestamp; 0 means no deadline
         uint128 totalCollected;
         uint32 payerCount; // unique payers
@@ -25,6 +32,7 @@ contract AjoBook {
 
     address public admin;
     string public communityName;
+    IERC20 public immutable token;
 
     Campaign[] private _campaigns;
     // campaignId => member => total paid into that campaign
@@ -47,7 +55,7 @@ contract AjoBook {
     error DeadlinePassed();
     error WrongAmount(uint256 expected, uint256 sent);
     error ZeroAmount();
-    error WithdrawFailed();
+    error ZeroAddress();
     error EmptyName();
 
     modifier onlyAdmin() {
@@ -60,9 +68,11 @@ contract AjoBook {
         _;
     }
 
-    constructor(string memory _communityName) {
+    constructor(string memory _communityName, IERC20 _token) {
+        if (address(_token) == address(0)) revert ZeroAddress();
         admin = msg.sender;
         communityName = _communityName;
+        token = _token;
     }
 
     // ---------- admin ----------
@@ -93,13 +103,15 @@ contract AjoBook {
         emit CampaignClosed(id);
     }
 
-    function withdraw(address payable to, uint256 amount) external onlyAdmin {
-        (bool ok,) = to.call{value: amount}("");
-        if (!ok) revert WithdrawFailed();
+    /// @notice Move collected dues to the treasury. Recorded onchain like everything else.
+    function withdraw(address to, uint256 amount) external onlyAdmin {
+        if (to == address(0)) revert ZeroAddress();
+        token.safeTransfer(to, amount);
         emit Withdrawn(to, amount);
     }
 
     function transferAdmin(address newAdmin) external onlyAdmin {
+        if (newAdmin == address(0)) revert ZeroAddress();
         emit AdminTransferred(admin, newAdmin);
         admin = newAdmin;
     }
@@ -107,22 +119,23 @@ contract AjoBook {
     // ---------- members ----------
 
     /// @notice Pay dues into a campaign. If the campaign has a fixed dues
-    ///         amount, you must send exactly that amount.
-    function payDues(uint256 id) external payable exists(id) {
+    ///         amount, `amount` must equal it.
+    function payDues(uint256 id, uint256 amount) external exists(id) {
         Campaign storage c = _campaigns[id];
         if (c.closed) revert CampaignIsClosed();
         if (c.deadline != 0 && block.timestamp > c.deadline) revert DeadlinePassed();
-        if (msg.value == 0) revert ZeroAmount();
-        if (c.duesAmount != 0 && msg.value != c.duesAmount) revert WrongAmount(c.duesAmount, msg.value);
+        if (amount == 0) revert ZeroAmount();
+        if (c.duesAmount != 0 && amount != c.duesAmount) revert WrongAmount(c.duesAmount, amount);
 
         if (paidAmount[id][msg.sender] == 0) {
             _payers[id].push(msg.sender);
             c.payerCount += 1;
         }
-        paidAmount[id][msg.sender] += msg.value;
-        c.totalCollected += uint128(msg.value);
+        paidAmount[id][msg.sender] += amount;
+        c.totalCollected += uint128(amount);
 
-        emit DuesPaid(id, msg.sender, msg.value, memberName[msg.sender]);
+        token.safeTransferFrom(msg.sender, address(this), amount);
+        emit DuesPaid(id, msg.sender, amount, memberName[msg.sender]);
     }
 
     /// @notice Set the display name shown next to your address in the ledger.
@@ -145,6 +158,11 @@ contract AjoBook {
         return _campaigns;
     }
 
+    /// @notice Token balance currently held by the book (collected, not yet withdrawn).
+    function balance() external view returns (uint256) {
+        return token.balanceOf(address(this));
+    }
+
     /// @notice The full ledger page for a campaign: every payer with their
     ///         display name and total paid.
     function getLedger(uint256 id) external view exists(id) returns (PaymentView[] memory page) {
@@ -155,6 +173,4 @@ contract AjoBook {
             page[i] = PaymentView({member: m, name: memberName[m], amount: paidAmount[id][m]});
         }
     }
-
-    receive() external payable {}
 }

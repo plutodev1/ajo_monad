@@ -298,3 +298,24 @@ dialog::backdrop { background: #1a140dcc; }
   .dash-stats { width: 100%; justify-content: space-between; }
   .dash-stat { justify-items: start; }
 }
+
+/* ---------- dues book / Esusu switch ---------- */
+
+.mode-switch { display: flex; gap: 6px; margin: 0 0 12px; }
+.mode-btn {
+  font: 600 0.88rem var(--form); padding: 7px 14px; border-radius: 999px; cursor: pointer;
+  border: 1.5px solid #f5eeda55; background: transparent; color: var(--paper);
+}
+.mode-btn[aria-selected="true"] { background: var(--paper); color: var(--ink); border-color: var(--paper); }
+
+.stamp-turn { color: var(--margin-red); }
+.missed {
+  font-size: 0.7rem; font-weight: 600; color: var(--margin-red);
+  border: 1px solid var(--margin-red); border-radius: 3px; padding: 0 5px; margin-left: 4px;
+}
+#circle-desk textarea, #circle-desk select { width: 100%; font: inherit; padding: 8px; border: 1px solid var(--rule); border-radius: 3px; background: #fffdf6; color: var(--ink); }
+#circle-desk textarea { font-family: ui-monospace, monospace; font-size: 0.8rem; }
+.slip-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+
+[hidden] { display: none !important; }
+.dash-who .stamp { justify-self: start; }

@@ -1,6 +1,11 @@
-# 📗 AjoBook — the onchain dues book
+# 📗 AjoBook — the onchain Ajo book
 
-**Live app:** https://plutodev1.github.io/ajo_monad/ · **Contract (Monad testnet):** [`0xE64f39E74Caf57Dfe7b886cdBbAcC463af877723`](https://testnet.monadvision.com/address/0xE64f39E74Caf57Dfe7b886cdBbAcC463af877723) (verified) · **Demo video:** _coming soon_
+**Live app:** https://plutodev1.github.io/ajo_monad/ · **Network:** Arbitrum Sepolia (testnet) · **Money:** USDC · **Demo video:** _coming soon_
+
+AjoBook has two books in one app:
+
+- **📗 Dues book** — a keeper opens a page ("November dues"), members pay in USDC, and everyone reads the same ledger.
+- **🔁 Esusu circles** — rotating savings. Everyone puts in the same amount each turn, and the whole pot goes to one member per turn, in an agreed order. The contract holds the money and pays out the moment the last person pays, so nobody has to trust a collector.
 
 ## The problem (mine, personally)
 
@@ -12,17 +17,24 @@ event contributions, and every month the same circus repeats:
 - A spreadsheet only I can see, so members just have to trust my bookkeeping
 - New treasurer? The entire payment history lives in my head and my inbox
 
-In Nigeria we call group contributions **Ajo**. Traditionally, the Ajo keeper writes every
-contribution in a physical book that members can inspect. Somewhere between the paper
-book and the WhatsApp group, we lost the "everyone can inspect it" part.
+In Nigeria we call group contributions **Ajo** (or **Esusu**). Traditionally, the Ajo keeper
+writes every contribution in a physical book that members can inspect, and in a rotating
+Ajo the collector holds everyone's money until it's the next person's turn — which is
+exactly where Ajo goes wrong when a collector disappears.
 
 ## The solution
 
-AjoBook puts the Ajo book on the Monad blockchain. The **keeper** opens a "page" (a
-campaign like *July 2026 Dues*), **members** sign their name and pay MON directly into
-the contract, and **everyone** reads the same ledger: who paid, how much, when — live,
-unfakeable, permanent. The keeper withdraws collected funds to the treasury, and that
-is also written in the book.
+AjoBook puts the Ajo book on Arbitrum and the money in USDC, so a naira-weak month doesn't
+eat the pot:
+
+- **Dues book.** The keeper opens a page, members sign their name and pay, and the ledger
+  — who paid, how much, when — is public and permanent. Withdrawals to the treasury are
+  written in the book too.
+- **Esusu circles.** Anyone can start a circle: name it, set the amount and how often
+  (daily, weekly, monthly), and list members in the order they collect. Each turn, members
+  pay their share; when the last one pays, the pot goes straight to whoever's turn it is.
+  If time runs out, anyone can close the turn: the recipient gets what came in, and
+  members who didn't pay are marked "missed" for the whole circle to see.
 
 ---
 
@@ -34,22 +46,25 @@ is also written in the book.
    [Rabby](https://rabby.io), [OKX Wallet](https://web3.okx.com), Coinbase Wallet…
    If you have several installed, AjoBook lets you pick one. You can sign out any time
    from the top-right corner.
-2. **Free test MON for gas.** AjoBook runs on Monad *testnet* — the tokens are free.
-   Go to the [Monad faucet](https://faucet.monad.xyz), paste your wallet address
-   (copy it from MetaMask: click your account name), and press *Get Tokens*.
+2. **Free test ETH for gas** on Arbitrum Sepolia — from any Arbitrum Sepolia faucet
+   (e.g. the [Alchemy](https://www.alchemy.com/faucets/arbitrum-sepolia) or
+   [QuickNode](https://faucet.quicknode.com/arbitrum/sepolia) faucet).
+3. **Free test USDC** from [faucet.circle.com](https://faucet.circle.com) — choose
+   *Arbitrum Sepolia* and paste your wallet address.
 
 ### As a member
 
 1. Open **https://plutodev1.github.io/ajo_monad/**. You can read the whole book without
    connecting anything.
 2. Click **"Open my wallet"** (top right). MetaMask pops up — approve the connection.
-   The app adds and switches to the Monad Testnet network for you automatically;
+   The app adds and switches to the Arbitrum Sepolia network for you automatically;
    approve that too when MetaMask asks.
 3. **Sign the book.** On the dashed line, write your name the way members know you —
    *"Ada from Enugu"* — and click **"Write it in the book"**. Confirm in MetaMask.
    You only do this once; your name sticks for every page.
-4. **Pay your dues.** Click **"Pay my dues — 0.1 MON"** (or on an open-amount page,
-   enter what you're giving). Confirm in MetaMask. A violet **PAID ✓** stamp lands
+4. **Pay your dues.** Click **"Pay my dues — $5.00"** (or on an open-amount page,
+   enter what you're giving). The first time, your wallet asks you to *allow* AjoBook to
+   take that much USDC, then to pay — two quick confirmations. A violet **PAID ✓** stamp lands
    next to your name, and everyone in the community can see it.
 5. Use the tabs above the page to flip to other campaigns.
 
@@ -61,14 +76,26 @@ appears below the book. From there you can:
 - **Open a new page** — name it ("August 2026 dues"), add a line of detail, set the
   dues amount (or leave 0 to accept any amount), and an optional deadline.
 - **Close this page** — stops further payments on the current campaign.
-- **Move it to the treasury** — withdraw collected MON to any address. The withdrawal
+- **Move it to the treasury** — withdraw collected USDC to any address. The withdrawal
   is recorded onchain like everything else.
+
+### Esusu circles
+
+1. Switch to **🔁 Esusu circles** at the top.
+2. **Start a circle** (any wallet can): name it, set each person's share in USDC and how
+   often, and paste members' wallet addresses — one per line, *in the order they collect*.
+   "Add my address" drops yours in.
+3. Each turn, members click **"Put in my $10.00"**. When the last member pays, the pot
+   lands in the wallet of whoever's turn it is, automatically.
+4. If a turn's time runs out, anyone can press **"Close this turn"**: the recipient gets
+   what came in, and anyone who didn't pay is marked *missed*.
+
+Members' names come from the dues book, so signing your name once covers both.
 
 ### Verify nothing is hidden
 
-Every number in the app comes straight from the chain. Check the raw ledger yourself on
-[MonadVision](https://testnet.monadvision.com/address/0xE64f39E74Caf57Dfe7b886cdBbAcC463af877723) —
-the contract source is verified, so you can read exactly what the code does.
+Every number in the app comes straight from the chain. Use the **"read the book's
+contract ↗"** link at the bottom of the app to open the verified contract on Blockscout.
 
 ---
 
@@ -80,42 +107,47 @@ You'll need [Node.js](https://nodejs.org) 20+, [Foundry](https://getfoundry.sh),
 
 ```bash
 git clone https://github.com/plutodev1/ajo_monad.git
-cd ajobook
+cd ajo_monad
 ```
 
-### 2. Test the contract (optional but satisfying)
+### 2. Test the contracts
 
 ```bash
 cd contracts
-forge test        # 17 tests, all green
+forge test        # 30 tests (dues book + Esusu circles), all green
 ```
 
-### 3. Deploy your own dues book
+### 3. Deploy to Arbitrum Sepolia
 
-You need a wallet with a little testnet MON for gas (see the faucet above). Then:
+Put your deployer key in Foundry's encrypted keystore (it asks for the key and a password;
+nothing is saved in plain text), and give that wallet a little Arbitrum Sepolia ETH:
 
 ```bash
-forge create src/AjoBook.sol:AjoBook \
-  --rpc-url https://testnet-rpc.monad.xyz \
-  --private-key <YOUR_PRIVATE_KEY> \
-  --broadcast \
-  --constructor-args "Your Community Name"
+cast wallet import deployer --interactive
 ```
 
-Copy the **"Deployed to"** address. The wallet that deploys is the keeper.
-
-Verify the source (so members can read the code):
+Deploy both contracts — the dues book and the Esusu circles — against Circle's test USDC,
+and verify them on Blockscout in the same step:
 
 ```bash
-forge verify-contract <DEPLOYED_ADDRESS> src/AjoBook.sol:AjoBook \
-  --chain-id 10143 \
-  --verifier sourcify \
-  --verifier-url https://sourcify-api-monad.blockvision.org
+COMMUNITY_NAME="ChainConnect NG" forge script script/Deploy.s.sol \
+  --rpc-url https://sepolia-rollup.arbitrum.io/rpc \
+  --account deployer --broadcast \
+  --verify --verifier blockscout \
+  --verifier-url https://arbitrum-sepolia.blockscout.com/api/
 ```
 
-### 4. Point the app at your contract
+It prints the `AjoBook` and `AjoCircle` addresses. The wallet that deploys is the dues
+book's keeper.
 
-Edit `web/src/config.js` and replace `CONTRACT_ADDRESS` with your deployed address.
+**Going to mainnet (Arbitrum One):** use `--rpc-url https://arb1.arbitrum.io/rpc` and
+`--verifier-url https://arbitrum.blockscout.com/api/`. The script picks real USDC
+(`0xaf88…5831`) automatically on chain 42161.
+
+### 4. Point the app at your contracts
+
+Edit `web/src/config.js` and fill in `AJOBOOK_ADDRESS` and `AJOCIRCLE_ADDRESS`.
+(For mainnet, also follow the note at the top of that file.)
 
 ### 5. Run the app
 
@@ -137,22 +169,28 @@ If your repo has a different name, change `base` in `web/vite.config.js` to matc
 ## How it's built
 
 ```
-contracts/           Foundry project
-  src/AjoBook.sol    the whole dues book: campaigns, payments, names, ledger views
-  test/AjoBook.t.sol 17 tests incl. fuzzing
+contracts/             Foundry project
+  src/AjoBook.sol      the dues book: campaigns, USDC payments, names, ledger views
+  src/AjoCircle.sol    Esusu circles: ordered turns, auto-payout, missed-turn record
+  src/SafeToken.sol    minimal safe ERC-20 transfers
+  script/Deploy.s.sol  deploys both against USDC (Arbitrum Sepolia or One)
+  test/                30 tests incl. fuzzing, with a 6-decimal mock USDC
 
 web/                 Vite + viem single-page app (no framework)
   index.html         the book: page, ledger rows, keeper's desk
-  src/main.js        wallet connect, chain switching, reads + writes via viem
+  src/main.js        wallet connect, chain switching, USDC approvals, both books via viem
+  src/config.js      network, contract and USDC addresses
 ```
 
-- **Chain:** Monad testnet (chain id 10143, RPC `https://testnet-rpc.monad.xyz`)
+- **Chain:** Arbitrum Sepolia (chain id 421614) → Arbitrum One for mainnet
+- **Money:** USDC (6 decimals) — Circle's test USDC on Sepolia, native USDC on Arbitrum One
 - **Stack:** Solidity 0.8.24 + Foundry · viem · Vite · vanilla JS
 - **Design:** styled after the physical exercise book used at real Ajo meetings —
   cream paper, ruled lines, red margin, and a violet ink **PAID ✓** stamp
 
 ## Why this is real
 
-It's July, and ChainConnect NG dues are actually due. The first campaign on the deployed
-contract is our real July collection. If it saves me one evening of receipt-chasing per
+AjoBook started on Monad testnet (contract `0xE64f39E74Caf57Dfe7b886cdBbAcC463af877723`),
+where the first campaign was ChainConnect NG's real July dues collection. It now lives on
+Arbitrum with USDC, and adds Esusu circles for the rotating Ajo groups traders actually run. If it saves me one evening of receipt-chasing per
 month, it has already paid for itself.
