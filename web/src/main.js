@@ -8,13 +8,36 @@ import {
   getAddress,
   isAddress,
 } from "viem";
-import { AJOBOOK_ABI, AJOCIRCLE_ABI, ERC20_ABI } from "./abi.js";
+import { AJOBOOK_ABI, AJOBOOK_V1_ABI, AJOCIRCLE_ABI, ERC20_ABI } from "./abi.js";
 import { AJOBOOK_BYTECODE, AJOCIRCLE_BYTECODE } from "./bytecode.js";
-import { CHAIN, AJOBOOK_ADDRESS, AJOCIRCLE_ADDRESS, USDC_ADDRESS, USDC_DECIMALS, EXPLORER } from "./config.js";
+import { NETWORKS, DEFAULT_NETWORK } from "./config.js";
 
 const $ = (id) => document.getElementById(id);
 
-const publicClient = createPublicClient({ chain: CHAIN, transport: http() });
+// ---------- network ----------
+// The app opens one network at a time; ?net=monad in the link or the switch in the top bar picks it.
+
+function pickNetwork() {
+  const fromUrl = new URLSearchParams(location.search).get("net");
+  let saved = null;
+  try { saved = localStorage.getItem("ajobook-net"); } catch {}
+  return NETWORKS[fromUrl] ? fromUrl : NETWORKS[saved] ? saved : DEFAULT_NETWORK;
+}
+let net = NETWORKS[pickNetwork()];
+let CHAIN, AJOBOOK_ADDRESS, AJOCIRCLE_ADDRESS, EXPLORER, MONEY;
+let publicClient, contract, circleContract, usdcContract;
+function applyNetwork() {
+  CHAIN = net.chain;
+  AJOBOOK_ADDRESS = net.book;
+  AJOCIRCLE_ADDRESS = net.circles;
+  EXPLORER = net.explorer;
+  MONEY = net.money;
+  publicClient = createPublicClient({ chain: CHAIN, transport: http() });
+  contract = { address: AJOBOOK_ADDRESS, abi: net.legacy ? AJOBOOK_V1_ABI : AJOBOOK_ABI };
+  circleContract = { address: AJOCIRCLE_ADDRESS, abi: AJOCIRCLE_ABI };
+  usdcContract = { address: MONEY.address, abi: ERC20_ABI };
+}
+applyNetwork();
 
 let walletClient = null;
 let account = null;
@@ -25,30 +48,31 @@ let ledgers = [];
 let activePage = 0;
 let justStamped = null; // "pageId:address" — animate this stamp once
 
-const contract = { address: AJOBOOK_ADDRESS, abi: AJOBOOK_ABI };
-const circleContract = { address: AJOCIRCLE_ADDRESS, abi: AJOCIRCLE_ABI };
-const usdcContract = { address: USDC_ADDRESS, abi: ERC20_ABI };
 let view = "book"; // "book" | "circles"
 
 // ---------- helpers ----------
 
 const short = (a) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 const usd = (units) => {
-  const n = Number(formatUnits(units, USDC_DECIMALS));
+  const n = Number(formatUnits(units, MONEY.decimals));
+  if (MONEY.kind === "native") {
+    return `${n.toLocaleString("en-US", { maximumFractionDigits: 4 })} ${MONEY.symbol}`;
+  }
   return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 const mon = usd; // kept so older call sites read the same
-const toUnits = (s) => parseUnits(String(s || "0"), USDC_DECIMALS);
+const toUnits = (s) => parseUnits(String(s || "0"), MONEY.decimals);
 
 // Dues are paid in USDC, so the wallet first allows the contract to take
 // exactly this amount. Skipped when an earlier approval still covers it.
 async function ensureAllowance(spender, amount) {
+  if (MONEY.kind === "native") return true;
   const current = await publicClient.readContract({ ...usdcContract, functionName: "allowance", args: [account, spender] });
   if (current >= amount) return true;
   const bal = await publicClient.readContract({ ...usdcContract, functionName: "balanceOf", args: [account] });
   if (bal < amount) {
     note(`You need ${usd(amount)} USDC in this wallet but have ${usd(bal)}. Test USDC is free at
-      <a href="https://faucet.circle.com" target="_blank" rel="noopener">faucet.circle.com</a> (pick Arbitrum Sepolia).`, "err");
+      <a href="${net.moneyFaucet}" target="_blank" rel="noopener">${net.moneyFaucet.replace("https://", "")}</a> (pick ${escapeHtml(CHAIN.name)}).`, "err");
     return false;
   }
   return sendTx(`Allowing AjoBook to take ${usd(amount)} USDC`, () =>
@@ -397,18 +421,66 @@ function renderKeeper() {
   };
 }
 
+function renderNetwork() {
+  const el = $("net-switch");
+  el.innerHTML = Object.values(NETWORKS)
+    .map((n) => `<button type="button" class="net-btn" data-net="${n.key}" aria-pressed="${n.key === net.key}">${escapeHtml(n.label)}</button>`)
+    .join("");
+  el.querySelectorAll("[data-net]").forEach((b) => {
+    b.onclick = () => switchNetwork(b.dataset.net);
+  });
+  document.querySelectorAll(".cur").forEach((s) => (s.textContent = MONEY.symbol));
+  $("chain-line").textContent = `Kept on ${net.label}${MONEY.kind === "erc20" ? ` and paid in ${MONEY.symbol}` : ""}`;
+  const step = MONEY.kind === "native" ? "any" : "0.01";
+  ["pay-amount"].forEach((id) => ($(id).step = step));
+  document.querySelectorAll("#create-form [name=amount], #withdraw-form [name=amount]").forEach((i) => (i.step = step));
+}
+
+async function switchNetwork(key) {
+  if (key === net.key || !NETWORKS[key]) return;
+  net = NETWORKS[key];
+  try { localStorage.setItem("ajobook-net", key); } catch {}
+  const url = new URL(location.href);
+  url.searchParams.set("net", key);
+  history.replaceState(null, "", url);
+  applyNetwork();
+  view = "book";
+  campaigns = [];
+  ledgers = [];
+  activePage = 0;
+  refresh.ranOnce = false;
+  $("page-tabs").innerHTML = "";
+  $("member-dash").hidden = true;
+  $("keeper").hidden = true;
+  $("circle-desk").hidden = true;
+  $("sheet").innerHTML = `<p class="sheet-loading">Opening the ${escapeHtml(net.label)} book…</p>`;
+  if (walletClient && activeProvider) {
+    try {
+      await connectWith(activeProvider); // re-points the wallet at the new chain
+      return;
+    } catch (e) {
+      note(e.shortMessage || e.message, "err");
+    }
+  }
+  refresh();
+}
+
 async function refresh() {
+  renderNetwork();
   if (!AJOBOOK_ADDRESS) return renderSetup();
   renderModeSwitch();
   if (view === "circles") return refreshCircles();
+  const myNet = net;
   try {
     const [name, admin, all, balance] = await Promise.all([
       publicClient.readContract({ ...contract, functionName: "communityName" }),
       publicClient.readContract({ ...contract, functionName: "admin" }),
       publicClient.readContract({ ...contract, functionName: "getAllCampaigns" }),
-      publicClient.readContract({ ...contract, functionName: "balance" }),
+      net.legacy
+        ? publicClient.getBalance({ address: AJOBOOK_ADDRESS })
+        : publicClient.readContract({ ...contract, functionName: "balance" }),
     ]);
-    if (view !== "book") return; // switched to circles while loading
+    if (view !== "book" || net !== myNet) return; // switched view or network while loading
     adminAddr = getAddress(admin);
     campaigns = all;
     ledgers = await Promise.all(
@@ -429,7 +501,7 @@ async function refresh() {
 
     if (account) {
       myName = await publicClient.readContract({ ...contract, functionName: "memberName", args: [account] });
-      if (view !== "book") return;
+      if (view !== "book" || net !== myNet) return;
       $("wallet-name").textContent = myName || "Unsigned member";
     }
 
@@ -456,7 +528,7 @@ function openPayDialog(id) {
       ? `Dues on this page are ${mon(c.duesAmount)}, same for everyone. Already paid? You can always stamp again to give extra.`
       : `This page takes any amount — write in what you’re giving.`;
   $("pay-amount-label").hidden = fixed;
-  $("pay-amount").value = fixed ? formatUnits(c.duesAmount, USDC_DECIMALS) : "";
+  $("pay-amount").value = fixed ? formatUnits(c.duesAmount, MONEY.decimals) : "";
   $("pay-amount").required = !fixed;
   $("pay-dialog").showModal();
   $("pay-form").onsubmit = (e) => {
@@ -468,7 +540,11 @@ function openPayDialog(id) {
       .then((allowed) =>
         allowed &&
         sendTx("Paying your dues", () =>
-          walletClient.writeContract({ ...contract, functionName: "payDues", args: [BigInt(id), value], account })
+          walletClient.writeContract(
+            net.legacy
+              ? { ...contract, functionName: "payDues", args: [BigInt(id)], value, account }
+              : { ...contract, functionName: "payDues", args: [BigInt(id), value], account }
+          )
         )
       )
       .then((ok) => {
@@ -528,7 +604,9 @@ const roundEnd = (c) => c.startTime + (BigInt(c.currentRound) + 1n) * BigInt(c.r
 
 function renderModeSwitch() {
   const el = $("mode-switch");
-  el.hidden = false;
+  const hasCircles = !net.legacy;
+  el.hidden = !hasCircles;
+  if (!hasCircles) view = "book";
   el.querySelectorAll("[data-view]").forEach((b) => {
     b.setAttribute("aria-selected", String(b.dataset.view === view));
     b.onclick = () => {
@@ -755,7 +833,7 @@ function renderSetup() {
     const eth = await publicClient.getBalance({ address: account });
     if (eth === 0n) {
       return note(`This wallet has no ${escapeHtml(CHAIN.name)} ETH for gas yet. Get some free from the
-        <a href="https://www.alchemy.com/faucets/arbitrum-sepolia" target="_blank" rel="noopener">Alchemy faucet</a>, then try again.`, "err");
+        <a href="${net.gasFaucet}" target="_blank" rel="noopener">faucet</a>, then try again.`, "err");
     }
     const deploy = async (label, abi, bytecode, args) => {
       note(`${label}… your wallet will ask you to sign.`);
@@ -765,8 +843,8 @@ function renderSetup() {
       return r.contractAddress;
     };
     try {
-      const book = await deploy("Creating the dues book", AJOBOOK_ABI, AJOBOOK_BYTECODE, [name, USDC_ADDRESS]);
-      const circ = await deploy("Creating the Esusu circles", AJOCIRCLE_ABI, AJOCIRCLE_BYTECODE, [USDC_ADDRESS]);
+      const book = await deploy("Creating the dues book", AJOBOOK_ABI, AJOBOOK_BYTECODE, [name, MONEY.address]);
+      const circ = await deploy("Creating the Esusu circles", AJOCIRCLE_ABI, AJOCIRCLE_BYTECODE, [MONEY.address]);
       note("Both contracts are live. Copy the two addresses below and send them over.", "ok");
       $("setup-out").innerHTML = `
         <p class="sheet-terms"><b>AjoBook</b> <code>${book}</code></p>

@@ -1,6 +1,10 @@
 # 📗 AjoBook — the onchain Ajo book
 
-**Live app:** https://plutodev1.github.io/ajo_monad/ · **Network:** Arbitrum Sepolia (testnet) · **Money:** USDC · **Demo video:** _coming soon_
+**Live app:** https://plutodev1.github.io/ajo_monad/ · **Networks:** Arbitrum Sepolia (USDC) and Monad testnet (MON) · **Demo video:** _coming soon_
+
+Pick the network with the **Arbitrum / Monad** switch in the top bar (or link straight to one with
+`?net=monad` / `?net=arbitrum`). Arbitrum has the USDC dues book and Esusu circles; Monad keeps the
+original dues book, including ChainConnect NG's July 2026 collection.
 
 AjoBook has two books in one app:
 
@@ -146,8 +150,10 @@ book's keeper.
 
 ### 4. Point the app at your contracts
 
-Edit `web/src/config.js` and fill in `AJOBOOK_ADDRESS` and `AJOCIRCLE_ADDRESS`.
-(For mainnet, also follow the note at the top of that file.)
+Edit `web/src/config.js` and fill in `book` and `circles` under the `arbitrum` network.
+Or skip the command line: open the live app on Arbitrum while those are empty, connect the
+keeper wallet, and press **Deploy the book** — it creates both contracts from your wallet and
+shows the addresses to paste in.
 
 ### 5. Run the app
 
@@ -179,7 +185,7 @@ contracts/             Foundry project
 web/                 Vite + viem single-page app (no framework)
   index.html         the book: page, ledger rows, keeper's desk
   src/main.js        wallet connect, chain switching, USDC approvals, both books via viem
-  src/config.js      network, contract and USDC addresses
+  src/config.js      the networks (Arbitrum, Monad): chains, contract and token addresses
 ```
 
 - **Chain:** Arbitrum Sepolia (chain id 421614) → Arbitrum One for mainnet

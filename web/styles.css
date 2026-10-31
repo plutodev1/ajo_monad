@@ -319,3 +319,11 @@ dialog::backdrop { background: #1a140dcc; }
 
 [hidden] { display: none !important; }
 .dash-who .stamp { justify-self: start; }
+
+/* ---------- network switch ---------- */
+.net-switch { display: flex; border: 1.5px solid #f5eeda55; border-radius: 999px; padding: 2px; }
+.net-btn {
+  font: 600 0.78rem var(--form); padding: 4px 11px; border-radius: 999px; cursor: pointer;
+  border: 0; background: transparent; color: var(--paper);
+}
+.net-btn[aria-pressed="true"] { background: var(--paper); color: var(--ink); }

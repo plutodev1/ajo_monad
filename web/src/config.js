@@ -1,16 +1,43 @@
+import { defineChain } from "viem";
 import { arbitrumSepolia } from "viem/chains";
 
-// Which network the app talks to. For mainnet, switch to `arbitrum` from
-// "viem/chains", set USDC_ADDRESS to 0xaf88d065e77c8cC2239327C5EDb3A432268e5831
-// and EXPLORER to https://arbitrum.blockscout.com.
-export const CHAIN = arbitrumSepolia;
+const monadTestnet = defineChain({
+  id: 10143,
+  name: "Monad Testnet",
+  nativeCurrency: { name: "MON", symbol: "MON", decimals: 18 },
+  rpcUrls: { default: { http: ["https://testnet-rpc.monad.xyz"] } },
+  blockExplorers: { default: { name: "MonadVision", url: "https://testnet.monadvision.com" } },
+});
 
-// Fill these in with the addresses printed by `forge script script/Deploy.s.sol`.
-export const AJOBOOK_ADDRESS = "";
-export const AJOCIRCLE_ADDRESS = "";
+// Each network the app can open. Members pick one with the switch in the top bar.
+//  - book / circles: contract addresses ("" = not deployed yet; the keeper gets a setup screen)
+//  - money: "erc20" pays in a stablecoin (needs an approval first), "native" pays in the chain's coin
+//  - legacy: the original Monad dues book (pays in MON, no Esusu circles)
+export const NETWORKS = {
+  arbitrum: {
+    key: "arbitrum",
+    label: "Arbitrum",
+    chain: arbitrumSepolia,
+    book: "",
+    circles: "",
+    money: { kind: "erc20", symbol: "USDC", decimals: 6, address: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d" },
+    explorer: "https://arbitrum-sepolia.blockscout.com",
+    gasFaucet: "https://www.alchemy.com/faucets/arbitrum-sepolia",
+    moneyFaucet: "https://faucet.circle.com",
+    legacy: false,
+  },
+  monad: {
+    key: "monad",
+    label: "Monad",
+    chain: monadTestnet,
+    book: "0xE64f39E74Caf57Dfe7b886cdBbAcC463af877723",
+    circles: "",
+    money: { kind: "native", symbol: "MON", decimals: 18 },
+    explorer: "https://testnet.monadvision.com",
+    gasFaucet: "https://faucet.monad.xyz",
+    moneyFaucet: "https://faucet.monad.xyz",
+    legacy: true,
+  },
+};
 
-// Circle's official test USDC on Arbitrum Sepolia (free from https://faucet.circle.com).
-export const USDC_ADDRESS = "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d";
-export const USDC_DECIMALS = 6;
-
-export const EXPLORER = "https://arbitrum-sepolia.blockscout.com";
+export const DEFAULT_NETWORK = "arbitrum";

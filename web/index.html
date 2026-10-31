@@ -6,7 +6,7 @@
     <title>AjoBook — the onchain dues book</title>
     <meta
       name="description"
-      content="AjoBook is an onchain Ajo book for communities on Arbitrum. Dues pages anyone can audit, and Esusu circles where the pot goes to each member in turn, paid in USDC. No more chasing receipts on WhatsApp."
+      content="AjoBook is an onchain Ajo book for communities on Arbitrum and Monad. Dues pages anyone can audit, and Esusu circles where the pot goes to each member in turn, paid in USDC. No more chasing receipts on WhatsApp."
     />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📗</text></svg>" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -30,6 +30,7 @@
       <header class="topbar">
         <span class="wordmark">📗 AjoBook</span>
         <span class="topbar-note" id="community-line">the dues book</span>
+        <div id="net-switch" class="net-switch" role="group" aria-label="Network"></div>
         <div class="wallet-area">
           <button id="connect-btn" class="btn btn-paper">Open my wallet</button>
           <div id="wallet-info" class="wallet-info" hidden>
@@ -69,7 +70,7 @@
             <label>A line of detail <small>(members will read this)</small>
               <input name="details" maxlength="140" placeholder="Monthly dues for ChainConnect NG" />
             </label>
-            <label>Dues in USDC <small>(leave 0 and members give what they can)</small>
+            <label>Dues in <span class="cur">USDC</span> <small>(leave 0 and members give what they can)</small>
               <input name="amount" type="number" min="0" step="any" value="0" />
             </label>
             <label>Collecting until <small>(optional)</small>
@@ -87,7 +88,7 @@
               <label>Send it to
                 <input name="to" required placeholder="0x… treasury address" pattern="0x[a-fA-F0-9]{40}" />
               </label>
-              <label>How much, in USDC
+              <label>How much, in <span class="cur">USDC</span>
                 <input name="amount" type="number" min="0" step="0.01" required />
               </label>
               <button class="btn btn-ink" type="submit">Move it to the treasury</button>
@@ -104,7 +105,7 @@
             <input name="name" required maxlength="60" placeholder="Rumuokoro traders — weekly" />
           </label>
           <div class="slip-row">
-            <label>Each person puts in (USDC)
+            <label>Each person puts in (<span class="cur">USDC</span>)
               <input name="amount" type="number" min="0.01" step="0.01" required placeholder="10" />
             </label>
             <label>How often
@@ -130,7 +131,7 @@
 
       <footer class="colophon">
         <p>
-          Kept on Arbitrum and paid in USDC, so nobody has to take the keeper’s word for it ·
+          <span id="chain-line">Kept on Arbitrum and paid in USDC</span>, so nobody has to take the keeper’s word for it ·
           <a id="contract-link" href="#" target="_blank" rel="noopener">read the book’s contract ↗</a>
         </p>
         <p class="colophon-small">Built by a founder tired of chasing dues receipts on WhatsApp.</p>
@@ -152,7 +153,7 @@
       <form id="pay-form" method="dialog" class="slip slip-dialog">
         <h3 id="pay-title">Pay your dues</h3>
         <p id="pay-sub" class="slip-note"></p>
-        <label id="pay-amount-label">How much, in USDC
+        <label id="pay-amount-label">How much, in <span class="cur">USDC</span>
           <input id="pay-amount" type="number" min="0" step="0.01" />
         </label>
         <div class="dialog-row">
