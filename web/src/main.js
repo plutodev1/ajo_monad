@@ -600,7 +600,7 @@ let activeCircle = 0;
 const FREQUENCIES = { 86400: "daily", 604800: "weekly", 2592000: "monthly" };
 const freqWord = (secs) => FREQUENCIES[Number(secs)] || `every ${Math.round(Number(secs) / 86400)} days`;
 const nowSec = () => BigInt(Math.floor(Date.now() / 1000));
-const roundEnd = (c) => c.startTime + (BigInt(c.currentRound) + 1n) * BigInt(c.roundDuration);
+const roundEnd = (c) => c.roundEndsAt;
 
 function renderModeSwitch() {
   const el = $("mode-switch");

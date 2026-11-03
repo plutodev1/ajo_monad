@@ -23,6 +23,7 @@ contract AjoCircle {
         address organizer;
         uint96 contribution; // per member, per round, in token units
         uint64 startTime; // round 0 opens here
+        uint64 roundEndsAt; // deadline of the current round
         uint32 roundDuration; // seconds each round lasts
         uint32 currentRound; // index into the member list: whose turn it is
         uint32 paidCount; // members who have paid in the current round
@@ -101,12 +102,14 @@ contract AjoCircle {
             _members[id].push(m);
         }
 
+        uint64 start = startTime == 0 ? uint64(block.timestamp) : startTime;
         _circles.push(
             Circle({
                 name: name,
                 organizer: msg.sender,
                 contribution: contribution,
-                startTime: startTime == 0 ? uint64(block.timestamp) : startTime,
+                startTime: start,
+                roundEndsAt: start + roundDuration,
                 roundDuration: roundDuration,
                 currentRound: 0,
                 paidCount: 0,
@@ -168,6 +171,12 @@ contract AjoCircle {
         c.pot = 0;
         c.paidCount = 0;
         c.currentRound += 1;
+        // Next turn keeps the agreed calendar when things run on time, but if this
+        // turn was closed late, the next member still gets a full window to be paid,
+        // so a late close can never skip someone's turn.
+        uint64 next = c.roundEndsAt + c.roundDuration;
+        if (next <= block.timestamp) next = uint64(block.timestamp) + c.roundDuration;
+        c.roundEndsAt = next;
         if (c.currentRound == list.length) {
             c.finished = true;
             emit CircleFinished(id);
@@ -181,8 +190,7 @@ contract AjoCircle {
 
     /// @notice End of the current round's window (unix seconds).
     function roundDeadline(uint256 id) public view exists(id) returns (uint256) {
-        Circle storage c = _circles[id];
-        return uint256(c.startTime) + (uint256(c.currentRound) + 1) * c.roundDuration;
+        return _circles[id].roundEndsAt;
     }
 
     function circleCount() external view returns (uint256) {

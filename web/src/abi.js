@@ -699,6 +699,11 @@ export const AJOCIRCLE_ABI = [
             "internalType": "uint64"
           },
           {
+            "name": "roundEndsAt",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
             "name": "roundDuration",
             "type": "uint32",
             "internalType": "uint32"
@@ -761,6 +766,11 @@ export const AJOCIRCLE_ABI = [
           },
           {
             "name": "startTime",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "roundEndsAt",
             "type": "uint64",
             "internalType": "uint64"
           },

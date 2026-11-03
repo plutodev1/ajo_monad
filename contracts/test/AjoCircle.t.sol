@@ -191,4 +191,30 @@ contract AjoCircleTest is Test {
         assertEq(usdc.balanceOf(bayo), bayoBefore - amount);
         assertEq(circle.payoutOfRound(id, 0), uint256(amount) * 3);
     }
+
+    /// A late closeRound must not push the circle into an already-expired turn
+    /// (reported by KupiaSec): the next member must still get a full window to be paid.
+    function test_LateCloseDoesNotSkipNextTurn() public {
+        uint256 id = _open();
+        vm.prank(ada);
+        circle.contribute(id);
+        vm.prank(bayo);
+        circle.contribute(id); // chi defaults in round 0
+
+        vm.warp(block.timestamp + 15 days); // closed 8 days late: round 1 slot already over
+        circle.closeRound(id);
+
+        // round 1 (bayo's turn) must be open for payments, not instantly closable
+        vm.expectRevert(AjoCircle.RoundStillOpen.selector);
+        circle.closeRound(id);
+        address[] memory m = _members();
+        uint256 bayoBefore = usdc.balanceOf(bayo);
+        for (uint256 i = 0; i < 3; i++) {
+            vm.prank(m[i]);
+            circle.contribute(id);
+        }
+        assertEq(usdc.balanceOf(bayo), bayoBefore - C + 3 * C);
+        assertEq(circle.missedRounds(id, ada), 0);
+        assertEq(circle.missedRounds(id, bayo), 0);
+    }
 }
