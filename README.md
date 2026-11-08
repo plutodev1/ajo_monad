@@ -6,6 +6,8 @@ Pick the network with the **Arbitrum / Monad** switch in the top bar (or link st
 `?net=monad` / `?net=arbitrum`). Arbitrum has the USDC dues book and Esusu circles; Monad keeps the
 original dues book, including ChainConnect NG's July 2026 collection.
 
+> 🚀 **Coming to Stellar:** a passkey-powered Esusu circle is being built at Boundless Build Day, Uyo (12 Nov 2026). See [`stellar/`](stellar/).
+
 AjoBook has two books in one app:
 
 - **📗 Dues book** — a keeper opens a page ("November dues"), members pay in USDC, and everyone reads the same ledger.
