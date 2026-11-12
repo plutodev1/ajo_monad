@@ -37,6 +37,7 @@ let busy = false;
 
 function pickBook() {
   const fromLink = new URLSearchParams(location.search).get("book");
+  if (fromLink === "new") return ""; // ?book=new: show the setup screen to start another book
   if (fromLink && isContractAddress(fromLink)) return fromLink;
   if (STELLAR.circles && isContractAddress(STELLAR.circles)) return STELLAR.circles;
   try {

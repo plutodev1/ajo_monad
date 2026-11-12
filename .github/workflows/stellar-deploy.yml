@@ -1,0 +1,28 @@
+name: Deploy a fresh AjoBook on Stellar testnet
+
+on:
+  workflow_dispatch:
+    inputs:
+      money:
+        description: "What the book is kept in"
+        type: choice
+        options: [XLM, USDC]
+        default: XLM
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: web
+      - run: npm run deploy:stellar -- "$MONEY"
+        working-directory: web
+        env:
+          MONEY: ${{ inputs.money }}
