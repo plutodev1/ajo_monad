@@ -24,8 +24,14 @@ Esusu circles as a Soroban smart contract ([`stellar/contracts/ajo-circle`](stel
   circle carries on and the pot waits in the book until that member collects it.
 
 **Try it (2 minutes):** install the [Freighter](https://www.freighter.app) wallet, switch it to **Test Net**,
-open the link, click **Open my wallet**, then **Get free test XLM**. The first person to open a fresh
-deployment sees a one-time **Set up the book** screen (two signatures) and gets a link to share.
+open the link, click **Open my wallet**, then **Get free test XLM**, and start a circle.
+
+| Book | Contract on Stellar testnet |
+| --- | --- |
+| Test XLM (the default) | [`CCQW4QKW…MSGSO`](https://stellar.expert/explorer/testnet/contract/CCQW4QKWXNV7Q2PQJAYUQUXKJGQCYNA2XUN67HDZTZYBJ4WZHURMSGSO) |
+| Test USDC ([open it](https://plutodev1.github.io/ajo_monad/stellar.html?book=CAZUKYSUKKIRWKDDAANZK4IXHYBDA56HNNJUOXBBXC5NRI3FSL5CHAAA)) | [`CAZUKYSU…CHAAA`](https://stellar.expert/explorer/testnet/contract/CAZUKYSUKKIRWKDDAANZK4IXHYBDA56HNNJUOXBBXC5NRI3FSL5CHAAA) |
+
+Add `?book=new` to the link to set up a separate book for your own community (two signatures).
 
 **For developers**
 
