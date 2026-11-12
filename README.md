@@ -1,10 +1,45 @@
 # 📗 AjoBook — the onchain Ajo book
 
-**Live app:** https://plutodev1.github.io/ajo_monad/ · **Networks:** Arbitrum Sepolia (USDC) and Monad testnet (MON) · **Demo video:** _coming soon_
+**Live app:** https://plutodev1.github.io/ajo_monad/ · **Networks:** Stellar testnet (XLM or USDC), Arbitrum Sepolia (USDC) and Monad testnet (MON) · **Demo video:** _coming soon_
 
 Pick the network with the **Arbitrum / Monad** switch in the top bar (or link straight to one with
 `?net=monad` / `?net=arbitrum`). Arbitrum has the USDC dues book and Esusu circles; Monad keeps the
 original dues book, including ChainConnect NG's July 2026 collection.
+
+## New: AjoBook on Stellar
+
+**Open it:** https://plutodev1.github.io/ajo_monad/stellar.html (or the **Stellar** button in the top bar).
+Built at Boundless Build Day, Uyo, 12 Nov 2026.
+
+Esusu circles as a Soroban smart contract ([`stellar/contracts/ajo-circle`](stellar/contracts/ajo-circle/src/lib.rs)):
+
+- **Start a circle.** Name it, set the amount and how often (daily, weekly, monthly, or every 5 minutes
+  for a live demo), and list the members by name in the order they collect.
+- **Pay in.** Each member puts in their share with one signature. There is no separate "approve" step on Stellar.
+- **Automatic payout.** The moment the last member pays, the contract sends the whole pot to the member
+  whose turn it is. Nobody holds the money in between.
+- **Late turns.** After the deadline anyone can close the turn: the recipient gets what came in and
+  members who didn't pay are marked "missed" in the book.
+- **No stuck money.** If a payout can't be delivered (say the member's wallet can't hold USDC yet), the
+  circle carries on and the pot waits in the book until that member collects it.
+
+**Try it (2 minutes):** install the [Freighter](https://www.freighter.app) wallet, switch it to **Test Net**,
+open the link, click **Open my wallet**, then **Get free test XLM**. The first person to open a fresh
+deployment sees a one-time **Set up the book** screen (two signatures) and gets a link to share.
+
+**For developers**
+
+```bash
+cd stellar && cargo test            # 10 contract tests
+./build.sh                          # rebuild the contract and re-embed it in the web app
+cd ../web && npm ci && npm run e2e  # deploy a fresh book on testnet and run a full circle end to end
+```
+
+Fees are a fraction of a cent and payments settle in about five seconds, which is what makes small daily
+or weekly contributions practical. Next on the roadmap: member deposits against default, onchain
+reputation across circles, and naira on/off-ramps through Stellar anchors.
+
+---
 
 AjoBook has two books in one app:
 

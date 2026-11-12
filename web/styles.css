@@ -327,3 +327,15 @@ dialog::backdrop { background: #1a140dcc; }
   border: 0; background: transparent; color: var(--paper);
 }
 .net-btn[aria-pressed="true"] { background: var(--paper); color: var(--ink); }
+
+/* Stellar page */
+a.net-btn { text-decoration: none; display: inline-block; }
+.help-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.help-row p { margin: 0; flex: 1 1 260px; }
+.setup-choice { display: grid; gap: 10px; margin: 14px 0; }
+.setup-choice label { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.setup-choice input { margin-top: 4px; }
+.setup-choice small { display: block; opacity: 0.75; }
+.book-id { word-break: break-all; }
+.stamp-wait { color: var(--margin-red); }
+.countdown { font-variant-numeric: tabular-nums; }

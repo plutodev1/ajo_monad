@@ -425,7 +425,7 @@ function renderNetwork() {
   const el = $("net-switch");
   el.innerHTML = Object.values(NETWORKS)
     .map((n) => `<button type="button" class="net-btn" data-net="${n.key}" aria-pressed="${n.key === net.key}">${escapeHtml(n.label)}</button>`)
-    .join("");
+    .join("") + `<a class="net-btn" href="./stellar.html">Stellar</a>`;
   el.querySelectorAll("[data-net]").forEach((b) => {
     b.onclick = () => switchNetwork(b.dataset.net);
   });

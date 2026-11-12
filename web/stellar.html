@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AjoBook on Stellar — Esusu circles nobody has to trust a collector for</title>
+    <meta
+      name="description"
+      content="AjoBook on Stellar: Ajo / Esusu savings circles kept by a Soroban smart contract. Everyone pays in, the pot goes to each member in turn, and the whole book is public."
+    />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📗</text></svg>" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Libre+Franklin:wght@400;500;600;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <!-- ink-bleed filter: roughens stamp edges so it prints, not renders -->
+    <svg width="0" height="0" aria-hidden="true" focusable="false">
+      <filter id="inkbleed">
+        <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="n" />
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="1.8" />
+      </filter>
+    </svg>
+
+    <div class="desk">
+      <header class="topbar">
+        <span class="wordmark">📗 AjoBook</span>
+        <span class="topbar-note" id="community-line">Esusu circles — everyone takes a turn</span>
+        <div class="net-switch" role="group" aria-label="Network">
+          <a class="net-btn" href="./?net=arbitrum">Arbitrum</a>
+          <a class="net-btn" href="./?net=monad">Monad</a>
+          <a class="net-btn" href="./stellar.html" aria-pressed="true" aria-current="page">Stellar</a>
+        </div>
+        <div class="wallet-area">
+          <button id="connect-btn" class="btn btn-paper">Open my wallet</button>
+          <div id="wallet-info" class="wallet-info" hidden>
+            <span id="wallet-balance"></span>
+            <code id="wallet-addr"></code>
+            <button id="signout-btn" class="btn-quiet" type="button">Sign out</button>
+          </div>
+        </div>
+      </header>
+
+      <p id="note" class="note" role="status" hidden></p>
+
+      <section id="wallet-help" class="member-dash" hidden></section>
+
+      <nav id="page-tabs" class="page-tabs" aria-label="Circles in this book"></nav>
+
+      <main class="book">
+        <article class="sheet" id="sheet" aria-live="polite">
+          <p class="sheet-loading">Opening the book…</p>
+        </article>
+      </main>
+
+      <section class="keeper" id="circle-desk" hidden>
+        <h3>Start an Esusu circle</h3>
+        <p class="keeper-note">Everyone puts in the same amount each turn, and the whole pot goes to one member per turn, in the order you list them. The contract holds the money and pays out — no one has to trust a collector.</p>
+        <form id="circle-form" class="slip">
+          <label>Name the circle
+            <input name="name" required maxlength="60" placeholder="Rumuokoro traders — weekly" />
+          </label>
+          <div class="slip-row">
+            <label>Each person puts in (<span class="cur">XLM</span>)
+              <input name="amount" type="number" min="0.01" step="0.01" required placeholder="10" />
+            </label>
+            <label>How often
+              <select name="frequency">
+                <option value="300">Every 5 minutes (live demo)</option>
+                <option value="86400">Daily</option>
+                <option value="604800" selected>Weekly</option>
+                <option value="2592000">Monthly (30 days)</option>
+              </select>
+            </label>
+            <label>First turn starts <small>(blank = now)</small>
+              <input name="start" type="date" />
+            </label>
+          </div>
+          <label>Members, in the order they collect <small>(one per line: name, then their Stellar address)</small>
+            <textarea name="members" rows="5" required placeholder="Ada, GABC… collects first&#10;Bola, GDEF… collects second&#10;Chidi, GHIJ… collects third"></textarea>
+          </label>
+          <div class="page-actions">
+            <button class="btn" type="button" id="circle-add-me">Add me</button>
+            <button class="btn btn-ink" type="submit">Start the circle</button>
+          </div>
+        </form>
+      </section>
+
+      <footer class="colophon">
+        <p>
+          <span id="chain-line">Kept on Stellar</span>, so nobody has to take the collector’s word for it ·
+          <a id="contract-link" href="#" target="_blank" rel="noopener" hidden>read the book’s contract ↗</a>
+        </p>
+        <p class="colophon-small">Built by a founder tired of chasing dues receipts on WhatsApp.</p>
+      </footer>
+    </div>
+
+    <script type="module" src="/src/stellar.js"></script>
+  </body>
+</html>

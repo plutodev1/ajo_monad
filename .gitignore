@@ -17,3 +17,6 @@ web/src/config.testnet.bak
 
 # local deploy logs
 contracts/broadcast/
+
+# Stellar contract build output
+stellar/target/
