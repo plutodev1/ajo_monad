@@ -11,6 +11,7 @@ import {
   contract,
   hash,
   rpc,
+  scValToNative,
 } from "@stellar/stellar-sdk";
 import { AJOCIRCLE_WASM_B64 } from "./stellar-wasm.js";
 
@@ -47,18 +48,23 @@ export const server = () => new rpc.Server(NETWORK.rpcUrl);
 
 const CONTRACT_ERRORS = {
   1: "That circle isn’t in the book.",
-  2: "This circle has finished — every turn has been paid.",
+  2: "This circle has finished.",
   3: "This wallet isn’t a member of this circle.",
   4: "You’ve already paid this turn.",
-  5: "This circle hasn’t started yet.",
-  6: "Time is up for this turn. Close the turn to pay out what came in.",
+  5: "The host hasn’t started this circle yet.",
+  6: "Time is up for this turn. Close the turn first.",
   7: "This turn is still open — it can only be closed after its deadline.",
-  8: "Check the member list: at least 2 and at most 30 members, each wallet only once, one name each.",
   9: "The contribution has to be more than zero.",
   10: "Choose how often the circle pays.",
   11: "Names can’t be blank, and must be 64 characters or fewer.",
   12: "There’s nothing waiting to be collected.",
   13: "The payout still can’t be delivered — check the wallet can hold this money, then try again.",
+  14: "The host has closed this circle to new members.",
+  15: "This wallet is already in the circle.",
+  16: "This circle has already started.",
+  17: "This circle is full (30 members).",
+  18: "A circle needs at least two members before it can start.",
+  19: "The host can’t leave their own circle — cancel it instead.",
 };
 // The token contract has its own numbering; these come up when paying in.
 const TOKEN_ERRORS_WHEN_PAYING = {
@@ -71,7 +77,7 @@ export function explain(e, { paying = false } = {}) {
   const raw = String(e?.message || e?.error?.message || e?.error || e || "");
   const code = Number((raw.match(/Error\(Contract, #(\d+)\)/) || [])[1]);
   if (code) {
-    if (paying && code >= 7 && TOKEN_ERRORS_WHEN_PAYING[code]) return TOKEN_ERRORS_WHEN_PAYING[code];
+    if (paying && TOKEN_ERRORS_WHEN_PAYING[code]) return TOKEN_ERRORS_WHEN_PAYING[code];
     if (CONTRACT_ERRORS[code]) return CONTRACT_ERRORS[code];
   }
   if (/resulting balance is not within the allowed range|insufficient balance|underfunded/i.test(raw))
@@ -174,27 +180,83 @@ export function openBook(contractId, wallet = null) {
     return { hash: sent.sendTransactionResponse?.hash || sent.getTransactionResponse?.txHash || "", result: unwrap(sent.result) };
   };
 
+  const me = () => wallet?.publicKey;
   return {
     contractId,
     token: () => read("token", undefined),
     circleCount: () => read("circle_count", undefined),
     circle: (id) => read("get_circle", { id }),
     circles: () => read("get_circles", { start: 0, limit: 200 }),
-    /** members: [{ address, name }] in payout order. Returns { hash, result: newCircleId }. */
-    createCircle: ({ name, members, contribution, startTime = 0n, roundDuration }) =>
+    /** The host opens a circle and is its first member. Returns { hash, result: newCircleId }. */
+    createCircle: ({ name, hostName, contribution, roundDuration, deposit = 0n }) =>
       write("create_circle", {
-        organizer: wallet?.publicKey,
+        host: me(),
         name,
-        members: members.map((m) => m.address),
-        names: members.map((m) => m.name),
+        host_name: hostName,
         contribution: BigInt(contribution),
-        start_time: BigInt(startTime),
         round_duration: BigInt(roundDuration),
+        deposit: BigInt(deposit),
       }),
-    contribute: (id) => write("contribute", { id, member: wallet?.publicKey }),
+    join: (id, name) => write("join", { id, member: me(), name }),
+    leave: (id) => write("leave", { id, member: me() }),
+    start: (id) => write("start", { id }),
+    cancel: (id) => write("cancel", { id }),
+    setOpen: (id, open) => write("set_open", { id, open }),
+    contribute: (id) => write("contribute", { id, member: me() }),
     closeRound: (id) => write("close_round", { id }),
-    claim: (id, member) => write("claim", { id, member: member || wallet?.publicKey }),
+    claim: (id, member) => write("claim", { id, member: member || me() }),
+    history: () => bookHistory(contractId),
   };
+}
+
+/** What a new member pays to join right now: { deposit, catchUp, thisTurn, total }. */
+export function joinCost(c) {
+  const deposit = BigInt(c.deposit);
+  const catchUp = c.started ? BigInt(c.contribution) * BigInt(c.current_round) : 0n;
+  const thisTurn = c.started ? BigInt(c.contribution) : 0n;
+  return { deposit, catchUp, thisTurn, total: deposit + catchUp + thisTurn };
+}
+
+// ---------- the book's history ----------
+
+/**
+ * Everything that has happened in the book recently, newest first:
+ * [{ kind, circle, member, hash, at, ...details }]. `kind` is the contract
+ * event name: circle_created, joined, left, started, cancelled, contributed,
+ * paid_out, claimed, circle_finished. The network keeps events for a limited
+ * time (about a week on testnet), so older lines drop off.
+ */
+export async function bookHistory(contractId) {
+  const s = server();
+  const filters = [{ type: "contract", contractIds: [contractId] }];
+  const latest = (await s.getLatestLedger()).sequence;
+  let page;
+  try {
+    page = await s.getEvents({ startLedger: Math.max(latest - 100000, 1), filters, limit: 1000 });
+  } catch (e) {
+    // Asked for further back than the network remembers: start at its oldest ledger.
+    const oldest = Number((String(e?.message || e).match(/ledger range:\s*(\d+)/) || [])[1]);
+    if (!oldest) throw e;
+    page = await s.getEvents({ startLedger: oldest, filters, limit: 1000 });
+  }
+  const out = [];
+  for (const ev of page.events || []) {
+    try {
+      const topics = (ev.topic || []).map((t) => scValToNative(t));
+      const details = scValToNative(ev.value);
+      out.push({
+        ...(details && typeof details === "object" ? details : {}),
+        kind: String(topics[0]),
+        circle: Number(topics[1]),
+        member: typeof topics[2] === "string" ? topics[2] : null,
+        hash: ev.txHash,
+        at: ev.ledgerClosedAt ? Math.floor(new Date(ev.ledgerClosedAt).getTime() / 1000) : 0,
+      });
+    } catch {
+      // An event this version of the page doesn't understand: skip it.
+    }
+  }
+  return out.reverse();
 }
 
 // ---------- wallets and money ----------
