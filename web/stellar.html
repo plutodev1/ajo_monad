@@ -30,11 +30,6 @@
       <header class="topbar">
         <span class="wordmark">📗 AjoBook</span>
         <span class="topbar-note" id="community-line">Esusu circles — everyone takes a turn</span>
-        <div class="net-switch" role="group" aria-label="Network">
-          <a class="net-btn" href="./?net=arbitrum">Arbitrum</a>
-          <a class="net-btn" href="./?net=monad">Monad</a>
-          <a class="net-btn" href="./stellar.html" aria-pressed="true" aria-current="page">Stellar</a>
-        </div>
         <div class="wallet-area">
           <button id="connect-btn" class="btn btn-paper">Open my wallet</button>
           <div id="wallet-info" class="wallet-info" hidden>
@@ -58,12 +53,17 @@
       </main>
 
       <section class="keeper" id="circle-desk" hidden>
-        <h3>Start an Esusu circle</h3>
-        <p class="keeper-note">Everyone puts in the same amount each turn, and the whole pot goes to one member per turn, in the order you list them. The contract holds the money and pays out — no one has to trust a collector.</p>
+        <h3>Host an Esusu circle</h3>
+        <p class="keeper-note">Everyone puts in the same amount each turn, and the whole pot goes to one member per turn, in the order they joined. The contract holds the money and pays out — no one has to trust a collector.</p>
         <form id="circle-form" class="slip">
-          <label>Name the circle
-            <input name="name" required maxlength="60" placeholder="Rumuokoro traders — weekly" />
-          </label>
+          <div class="slip-row">
+            <label>Name the circle
+              <input name="name" required maxlength="60" placeholder="Rumuokoro traders — weekly" />
+            </label>
+            <label>Your name <small>(the way the circle knows you)</small>
+              <input name="hostName" required maxlength="40" placeholder="Mama Nkechi" autocomplete="name" />
+            </label>
+          </div>
           <div class="slip-row">
             <label>Each person puts in (<span class="cur">XLM</span>)
               <input name="amount" type="number" min="0.01" step="0.01" required placeholder="10" />
@@ -76,16 +76,15 @@
                 <option value="2592000">Monthly (30 days)</option>
               </select>
             </label>
-            <label>First turn starts <small>(blank = now)</small>
-              <input name="start" type="date" />
-            </label>
           </div>
-          <label>Members, in the order they collect <small>(one per line: name, then their Stellar address)</small>
-            <textarea name="members" rows="5" required placeholder="Ada, GABC… collects first&#10;Bola, GDEF… collects second&#10;Chidi, GHIJ… collects third"></textarea>
+          <label class="check-row">
+            <input name="deposit" type="checkbox" checked />
+            <span>Everyone locks a deposit of one contribution when they join.
+              <small>If someone misses a turn, their deposit pays their share. Unused deposits come back at the end.</small></span>
           </label>
+          <p class="slip-note">You’ll be the first member, and the first to collect. After this you get a link and QR code to share; members join with their own wallets and write their own names. You start the circle when everyone is in.</p>
           <div class="page-actions">
-            <button class="btn" type="button" id="circle-add-me">Add me</button>
-            <button class="btn btn-ink" type="submit">Start the circle</button>
+            <button class="btn btn-ink" type="submit">Open the circle</button>
           </div>
         </form>
       </section>

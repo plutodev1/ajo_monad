@@ -230,15 +230,34 @@ export async function bookHistory(contractId) {
   const s = server();
   const filters = [{ type: "contract", contractIds: [contractId] }];
   const latest = (await s.getLatestLedger()).sequence;
-  let page;
-  try {
-    page = await s.getEvents({ startLedger: Math.max(latest - 100000, 1), filters, limit: 1000 });
-  } catch (e) {
-    // Asked for further back than the network remembers: start at its oldest ledger.
-    const oldest = Number((String(e?.message || e).match(/ledger range:\s*(\d+)/) || [])[1]);
-    if (!oldest) throw e;
-    page = await s.getEvents({ startLedger: oldest, filters, limit: 1000 });
+  // The network answers for a limited stretch of ledgers per request, so walk
+  // forward from about half a day ago to now, a page at a time.
+  const events = [];
+  let request = { startLedger: Math.max(latest - 8000, 1), filters, limit: 200 };
+  for (let pageNo = 0; pageNo < 12; pageNo++) {
+    let page;
+    try {
+      page = await s.getEvents(request);
+    } catch (e) {
+      // Asked for further back than the network remembers: start at its oldest ledger.
+      const oldest = Number((String(e?.message || e).match(/ledger range:\s*(\d+)/) || [])[1]);
+      if (!oldest || pageNo > 0 || request.startLedger === oldest) throw e;
+      request = { startLedger: oldest, filters, limit: 200 };
+      pageNo--;
+      continue;
+    }
+    events.push(...(page.events || []));
+    if (!page.cursor) break;
+    // A cursor is "<ledger and position>-<index>"; the ledger is its top 32 bits.
+    let reached = 0;
+    try {
+      reached = Number(BigInt(String(page.cursor).split("-")[0]) >> 32n);
+    } catch {}
+    const caughtUp = reached >= (page.latestLedger || latest) - 1;
+    if (caughtUp && (page.events || []).length < 200) break;
+    request = { cursor: page.cursor, filters, limit: 200 };
   }
+  const page = { events };
   const out = [];
   for (const ev of page.events || []) {
     try {

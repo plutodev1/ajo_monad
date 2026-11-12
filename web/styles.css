@@ -339,3 +339,27 @@ a.net-btn { text-decoration: none; display: inline-block; }
 .book-id { word-break: break-all; }
 .stamp-wait { color: var(--margin-red); }
 .countdown { font-variant-numeric: tabular-nums; }
+
+.check-row { display: flex !important; gap: 10px; align-items: flex-start; cursor: pointer; }
+.check-row input { width: auto; margin-top: 3px; }
+.check-row small { display: block; }
+.join-line { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 6px; }
+.join-line input {
+  flex: 1 1 200px; font: 600 1.5rem var(--hand, "Caveat", cursive); padding: 4px 8px; color: var(--ink);
+  background: transparent; border: 0; border-bottom: 2px dashed var(--rule);
+}
+.join-line input:focus { outline: none; border-bottom-color: var(--ink); }
+.cost-note { font-size: 0.85rem; opacity: 0.8; margin: 6px 0 0; }
+.invite { display: flex; gap: 16px; align-items: center; margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--rule); }
+.invite svg { width: 132px; height: 132px; flex: none; background: #fff; border-radius: 4px; }
+.invite-text { min-width: 0; }
+.invite-text b { display: block; }
+.invite-text code { display: block; font-size: 0.72rem; word-break: break-all; margin: 4px 0 8px; opacity: 0.8; }
+.host-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.tag { font-size: 0.7rem; font-weight: 600; border: 1px solid currentColor; border-radius: 3px; padding: 0 5px; margin-left: 4px; opacity: 0.75; }
+.history-title { font: 600 0.78rem var(--form); letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.6; margin: 26px 0 6px; }
+.history { list-style: none; margin: 0; padding: 0; font-size: 0.88rem; }
+.history li { display: flex; gap: 10px; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--rule); }
+.history li span:last-child { white-space: nowrap; opacity: 0.7; }
+.history a { color: inherit; }
+@media (max-width: 560px) { .invite { flex-direction: column; align-items: flex-start; } }
