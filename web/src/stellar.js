@@ -573,7 +573,7 @@ function renderSetup() {
       contractId = id;
       book = openBook(contractId, wallet);
       const link = `${location.origin}${location.pathname}?book=${id}`;
-      history.replaceState(null, "", `?book=${id}`);
+      window.history.replaceState(null, "", `?book=${id}`);
       busy = false;
       await refresh();
       note(`The book is live on Stellar. Share this link so everyone opens the same book: <a href="${link}">${link}</a><br />Book ID: <code class="book-id">${id}</code>`, "ok");
